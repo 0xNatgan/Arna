@@ -9,19 +9,19 @@ from tqdm import tqdm
 
 # Custom Dataset for News
 class NewsDataset(Dataset):
-    def __init__(self, texts, labels, tokenizer, max_length=128):
+    def __init__(self, texts, labels, sentiments, tokenizer, max_length=128):
         self.texts = texts
         self.labels = labels
         self.tokenizer = tokenizer
         self.max_length = max_length
-
+        self.sentiments = sentiments
     def __len__(self):
         return len(self.texts)
 
     def __getitem__(self, idx):
         text = str(self.texts[idx])
         label = self.labels[idx]
-
+        sentiment = self.sentiments[idx]
         encoding = self.tokenizer(
             text,
             truncation=True,
@@ -33,7 +33,8 @@ class NewsDataset(Dataset):
         return {
             'input_ids': encoding['input_ids'].squeeze(0),
             'attention_mask': encoding['attention_mask'].squeeze(0),
-            'label': t.tensor(label, dtype=t.long)
+            'label': t.tensor(label, dtype=t.long),
+            'sentiment': t.tensor(sentiment, dtype=t.long)
         }
 
 def load_data(train_path, test_path):
@@ -41,10 +42,12 @@ def load_data(train_path, test_path):
     test_df = pd.read_csv(test_path)
 
     label_encoder = LabelEncoder()
+    sentiment_encoder = LabelEncoder()
     train_df['label_encoded'] = label_encoder.fit_transform(train_df['Class Index'])
     test_df['label_encoded'] = label_encoder.transform(test_df['Class Index'])
-
-    return train_df, test_df, label_encoder
+    train_df['Sentiment_encoded'] = sentiment_encoder.fit_transform(train_df['Sentiment'])
+    test_df['Sentiment_encoded'] = sentiment_encoder.transform(test_df['Sentiment'])
+    return train_df, test_df, label_encoder, sentiment_encoder
 
 def train_epoch(model, dataloader, optimizer, criterion, device):
     model.train()
@@ -56,6 +59,7 @@ def train_epoch(model, dataloader, optimizer, criterion, device):
         input_ids = batch['input_ids'].to(device)
         attention_mask = batch['attention_mask'].to(device)
         labels = batch['label'].to(device)
+        sentiment = batch
 
         optimizer.zero_grad()
         outputs = model(input_ids, attention_mask)
@@ -105,12 +109,15 @@ def main():
     MODEL_NAME = 'bert-base-uncased'
 
     # Load data
-    train_df, test_df, label_encoder = load_data(
-        '/home/knwldgosint/Documents/School5/Advanced Neural network/project/Arna/dataset/train.csv',
-        '/home/knwldgosint/Documents/School5/Advanced Neural network/project/Arna/dataset/test.csv'
+    train_df, test_df, label_encoder, sentiment_encoder = load_data(
+        '/home/knwldgosint/Documents/School5/Advanced Neural network/project/Arna/dataset/train_with_sentiment.csv',
+        '/home/knwldgosint/Documents/School5/Advanced Neural network/project/Arna/dataset/test_with_sentiment.csv'
     )
     num_classes = len(label_encoder.classes_)
+    num_sentiments = len(sentiment_encoder.classes_)
     print(f"Number of classes: {num_classes}")
+    print(f"Number of sentiment classes: {num_sentiments}")
+
 
     # Tokenizer
     tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)
@@ -119,11 +126,13 @@ def main():
     train_dataset = NewsDataset(
         train_df['Description'].tolist(),
         train_df['label_encoded'].tolist(),
+        train_df['Sentiment_encoded'].tolist(),
         tokenizer
     )
     test_dataset = NewsDataset(
         test_df['Description'].tolist(),
         test_df['label_encoded'].tolist(),
+        test_df['Sentiment_encoded'].tolist(),
         tokenizer
     )
 

@@ -28,18 +28,19 @@ class MoEModel(nn.Module):
 
 
 class TextExpert(nn.Module):
-    def __init__(self, hidden_dim, output_dim):
+    def __init__(self, hidden_dim, output_dim,dropout=0.3):
         super().__init__()
         self.layers = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
+            nn.Dropout(dropout),
             nn.Linear(hidden_dim, output_dim)
         )
     def forward(self, x):
         return self.layers(x)
 
 class MoETextModel(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, output_dim, expert_number,num_heads=4,num_layers=2):
+    def __init__(self, vocab_size, embedding_dim, hidden_dim, output_dim, expert_number,num_heads=4,num_layers=2,freeze_bert=False):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
         encoder_layer = nn.TransformerEncoderLayer(
@@ -48,6 +49,9 @@ class MoETextModel(nn.Module):
             dim_feedforward = hidden_dim,
             batch_first = True
         )
+        if freeze_bert:
+            for param in self.bert.parameters():
+                param.requires_grad = False
         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
         self.experts = nn.ModuleList(
             [TextExpert(hidden_dim, output_dim) for _ in range(expert_number)]
