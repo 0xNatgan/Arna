@@ -96,7 +96,7 @@ def evaluate(model, dataloader, criterion, device):
 
     return total_loss / len(dataloader), correct / total
 
-def main():
+def main(model_type='bert'):
     # Configuration
     device = t.device('cuda' if t.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
@@ -139,17 +139,27 @@ def main():
     # DataLoaders
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE)
-
+    model = None
     # Model
-    model = MoEBertModel(
-        pretrained_model_name=MODEL_NAME,
-        expert_number=NUM_EXPERTS,
-        output_dim=num_classes,
-        routing = 'hard',
-        top_k = 3
+    if model_type == 'bert':
+        model = MoEBertModel(
+            pretrained_model_name=MODEL_NAME,
+            expert_number=NUM_EXPERTS,
+            output_dim=num_classes,
+            routing = 'gumbel',
+            top_k = 3
 
-    ).to(device)
-
+        ).to(device)
+    elif model_type == 'text':
+        model = MoETextModel(
+            vocab_size=tokenizer.vocab_size,
+            embedding_dim=128,
+            hidden_dim=256,
+            output_dim=num_classes,
+            expert_number=NUM_EXPERTS
+        ).to(device)
+    else:
+        raise ValueError("Invalid model type. Choose 'bert' or 'text'.")
     # Loss and optimizer
     criterion = nn.CrossEntropyLoss()
     optimizer = t.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
@@ -185,4 +195,7 @@ def main():
     print(f"\nBest Test Accuracy: {best_acc:.4f}")
 
 if __name__ == "__main__":
+    input_model_type = input()
+    main(model_type=input_model_type)
+
     main()

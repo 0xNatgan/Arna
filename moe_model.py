@@ -28,10 +28,11 @@ class MoEModel(nn.Module):
 
 
 class TextExpert(nn.Module):
-    def __init__(self, hidden_dim, output_dim,dropout=0.3):
+    def __init__(self, hidden_dim, output_dim,dropout=0.4):
         super().__init__()
         self.layers = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
             nn.ReLU(),
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, output_dim)
@@ -70,12 +71,13 @@ class MoETextModel(nn.Module):
         return output
 
 class MoEBertModel(nn.Module): # MoE model using BERT as the base model for NEWS
-    def __init__(self, pretrained_model_name, expert_number, output_dim,top_k=2,routing='soft'):
+    def __init__(self, pretrained_model_name, expert_number, output_dim,top_k=2,routing='soft',tau=1.0):
         super().__init__()
         self.bert = tf.BertModel.from_pretrained(pretrained_model_name)
         hidden_size = self.bert.config.hidden_size
         self.routing = routing
         self.top_k = top_k
+        self.tau = tau
         self.experts = nn.ModuleList(
             [TextExpert(hidden_size, output_dim) for _ in range(expert_number)]
         )
@@ -85,15 +87,17 @@ class MoEBertModel(nn.Module): # MoE model using BERT as the base model for NEWS
         bert_outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask)
         pooled_output = bert_outputs.pooler_output
         gate = self.gating_network(pooled_output)
+
         if self.routing == 'soft':
+            # Standard soft routing
             gating_weights = t.softmax(gate, dim=1)
             expert_outputs = t.stack([expert(pooled_output) for expert in self.experts], dim=1)
             output = t.bmm(gating_weights.unsqueeze(1), expert_outputs).squeeze(1)
 
         elif self.routing == 'hard':
+            # Hard routing
             gating_weights = t.softmax(gate, dim=1)
             top_k_weights, top_k_indices = t.topk(gating_weights, self.top_k, dim=1)
-
             top_k_weights = top_k_weights / top_k_weights.sum(dim=1, keepdim=True)
 
             batch_size = pooled_output.size(0)
@@ -103,4 +107,11 @@ class MoEBertModel(nn.Module): # MoE model using BERT as the base model for NEWS
                 for b in range(batch_size):
                     expert_output = self.experts[expert_idx[b]](pooled_output[b].unsqueeze(0))
                     output[b] += top_k_weights[b, i] * expert_output.squeeze(0)
+
+        elif self.routing == 'gumbel':
+            # Gumbel-Softmax
+            gating_weights = nn.functional.gumbel_softmax(gate, tau=self.tau, hard=True, dim=1)
+            expert_outputs = t.stack([expert(pooled_output) for expert in self.experts], dim=1)
+            output = t.bmm(gating_weights.unsqueeze(1), expert_outputs).squeeze(1)
+
         return output
