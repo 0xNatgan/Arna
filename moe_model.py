@@ -70,11 +70,12 @@ class MoETextModel(nn.Module):
         return output
 
 class MoEBertModel(nn.Module): # MoE model using BERT as the base model for NEWS
-    def __init__(self, pretrained_model_name, expert_number, output_dim):
+    def __init__(self, pretrained_model_name, expert_number, output_dim,top_k=2,routing='soft'):
         super().__init__()
         self.bert = tf.BertModel.from_pretrained(pretrained_model_name)
         hidden_size = self.bert.config.hidden_size
-
+        self.routing = routing
+        self.top_k = top_k
         self.experts = nn.ModuleList(
             [TextExpert(hidden_size, output_dim) for _ in range(expert_number)]
         )
@@ -83,8 +84,23 @@ class MoEBertModel(nn.Module): # MoE model using BERT as the base model for NEWS
     def forward(self, input_ids, attention_mask):
         bert_outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask)
         pooled_output = bert_outputs.pooler_output
+        gate = self.gating_network(pooled_output)
+        if self.routing == 'soft':
+            gating_weights = t.softmax(gate, dim=1)
+            expert_outputs = t.stack([expert(pooled_output) for expert in self.experts], dim=1)
+            output = t.bmm(gating_weights.unsqueeze(1), expert_outputs).squeeze(1)
 
-        gating_weights = t.softmax(self.gating_network(pooled_output), dim=1)
-        expert_outputs = t.stack([expert(pooled_output) for expert in self.experts], dim=1)
-        output = t.bmm(gating_weights.unsqueeze(1), expert_outputs).squeeze(1)
+        elif self.routing == 'hard':
+            gating_weights = t.softmax(gate, dim=1)
+            top_k_weights, top_k_indices = t.topk(gating_weights, self.top_k, dim=1)
+
+            top_k_weights = top_k_weights / top_k_weights.sum(dim=1, keepdim=True)
+
+            batch_size = pooled_output.size(0)
+            output = t.zeros(batch_size, self.experts[0].layers[-1].out_features).to(pooled_output.device)
+            for i in range(self.top_k):
+                expert_idx = top_k_indices[:, i]
+                for b in range(batch_size):
+                    expert_output = self.experts[expert_idx[b]](pooled_output[b].unsqueeze(0))
+                    output[b] += top_k_weights[b, i] * expert_output.squeeze(0)
         return output

@@ -105,7 +105,7 @@ def main():
     BATCH_SIZE = 16
     EPOCHS = 5
     LEARNING_RATE = 2e-5
-    NUM_EXPERTS = 4
+    NUM_EXPERTS = 10
     MODEL_NAME = 'bert-base-uncased'
 
     # Load data
@@ -144,7 +144,10 @@ def main():
     model = MoEBertModel(
         pretrained_model_name=MODEL_NAME,
         expert_number=NUM_EXPERTS,
-        output_dim=num_classes
+        output_dim=num_classes,
+        routing = 'hard',
+        top_k = 3
+
     ).to(device)
 
     # Loss and optimizer
