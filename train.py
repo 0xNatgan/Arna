@@ -109,10 +109,10 @@ def main(model_type='bert'):
     t.cuda.set_device(0)
 
     # Hyperparameters
-    BATCH_SIZE = 64
+    BATCH_SIZE = 32
     EPOCHS = 5
     LEARNING_RATE = 2e-5
-    NUM_EXPERTS = 10
+    NUM_EXPERTS = 4
     MODEL_NAME = 'bert-base-uncased'
     MAX_LEN = 128
     # Load data
@@ -155,8 +155,8 @@ def main(model_type='bert'):
         pretrained_model_name=MODEL_NAME,
         expert_number=NUM_EXPERTS,
         output_dim=num_classes,
-        routing = 'gumbel',
-        top_k = 3,
+        routing = 'soft',
+        top_k = 2,
         freeze_bert = True
     ).to(device)
     # elif model_type == 'text':
@@ -179,7 +179,10 @@ def main(model_type='bert'):
     test_loss=0
     train_loss=0
     train_acc=0
-
+    train_losses = []
+    test_losses = []
+    train_accuracies = []
+    test_accuracies = []
     for epoch in range(EPOCHS):
         print(f"\nEpoch {epoch + 1}/{EPOCHS}")
 
@@ -188,19 +191,22 @@ def main(model_type='bert'):
 
         print(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}")
         print(f"Test Loss: {test_loss:.4f}, Test Acc: {test_acc:.4f}")
-
+        train_losses.append(train_loss)
+        test_losses.append(test_loss)
+        train_accuracies.append(train_acc)
+        test_accuracies.append(test_acc)
         # Save best model
         if test_acc > best_acc:
             best_acc = test_acc
             t.save(model.state_dict(), 'best_moe_model.pth')
             print("Model saved!")
-    metrics = {
-        "train_loss": train_loss,
-        "train_accuracy": train_acc,
-        "test_loss": test_loss,
-        "test_accuracy": test_acc
+    metrics ={
+        "train_loss": train_losses,
+        "test_loss": test_losses,
+        "train_accuracy": train_accuracies,
+        "test_accuracy": test_accuracies
     }
-    t.save(metrics, 'training_metrics.pth')
+    t.save(metrics, 'training_metrics.txt')
     print(f"\nBest Test Accuracy: {best_acc:.4f}")
 
     t.cuda.empty_cache()
