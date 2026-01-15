@@ -1,0 +1,71 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+
+\title{Rapport de Projet : Classification de News via Mixture of Experts (MoE)}
+\author{Votre Nom}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction et Revue du Concept de MoE}
+L'objectif de ce projet est d'explorer l'architecture \textit{Mixture of Experts} (MoE) pour la classification de textes. Les modèles MoE reposent sur le principe de ``diviser pour régner'' : au lieu d'utiliser un seul réseau dense, on utilise plusieurs sous-réseaux spécialisés (\textbf{Experts}) et un mécanisme de routage (\textbf{Gating Network}) qui décide quel expert doit traiter quel échantillon.
+
+\section{Description du Modèle}
+\subsection{Architecture}
+Notre modèle, \texttt{MoEBertModel}, utilise \textbf{BERT} (\textit{bert-base-uncased}) comme extracteur de caractéristiques (backbone). La sortie du \textit{pooler} de BERT alimente :
+\begin{itemize}
+    \item Un réseau de routage (couche linéaire) qui génère des poids pour chaque expert.
+    \item Une liste de $N$ experts (\texttt{TextExpert}), chacun étant un réseau de neurones \textit{feed-forward} avec normalisation et dropout.
+\end{itemize}
+
+\subsection{Choix de Conception}
+\begin{itemize}
+    \item \textbf{Soft Routing} : Nous utilisons un routage "doux" via une fonction Softmax pour permettre un apprentissage stable de tous les experts simultanément.
+    \item \textbf{Exploration} : Ajout d'un bruit gaussien sur les scores du router durant l'entraînement pour éviter l'effondrement précoce sur un seul expert.
+\end{itemize}
+
+\section{Protocole Expérimental et Hyperparamètres}
+L'entraînement a été effectué sur le dataset AG News.
+\begin{table}[h]
+    \centering
+    \begin{tabular}{lc}
+        \toprule
+        Hyperparamètre        & Valeur             \\
+        \midrule
+        Batch Size            & 64                 \\
+        Nombre d'Époques      & 5                  \\
+        Learning Rate         & $3 \times 10^{-5}$ \\
+        Nombre d'Experts      & 8                  \\
+        Architecture Backbone & BERT Base          \\
+        \bottomrule
+    \end{tabular}
+    \caption{Configuration des hyperparamètres}
+\end{table}
+
+\section{Résultats Expérimentaux et Interprétation}
+Le modèle atteint une précision globale de \textbf{87 \%}.
+\begin{itemize}
+    \item \textbf{Performance par classe} : La classe 2 montre la meilleure performance avec un F1-score de 0.95.
+    \item \textbf{Usage des experts} : L'analyse thermique (heatmap) montre une spécialisation des experts. Certains experts traitent des caractéristiques transversales tandis que d'autres se spécialisent sur des thématiques précises.
+\end{itemize}
+
+\section{Discussion Critique}
+\subsection{Forces}
+Capacité de spécialisation et maintien d'une haute précision sur des classes complexes grâce à la modularité des experts.
+\subsection{Limites}
+Risque d'\textbf{Expert Collapse} (effondrement) où seuls quelques experts sont activés, rendant le reste de la capacité du modèle inutile si le router n'est pas bien régularisé.
+\subsection{Perspectives}
+Utiliser des fonctions de perte de \textit{Load Balancing} plus agressives ou explorer le \textbf{Top-k routing} pour réduire le coût computationnel à l'inférence.
+
+\end{document}
