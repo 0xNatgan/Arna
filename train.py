@@ -112,7 +112,7 @@ def main(model_type='bert'):
     BATCH_SIZE = 32
     EPOCHS = 5
     LEARNING_RATE = 2e-5
-    NUM_EXPERTS = 4
+    NUM_EXPERTS = 8
     MODEL_NAME = 'bert-base-uncased'
     MAX_LEN = 128
     # Load data
@@ -155,8 +155,8 @@ def main(model_type='bert'):
         pretrained_model_name=MODEL_NAME,
         expert_number=NUM_EXPERTS,
         output_dim=num_classes,
-        routing = 'soft',
-        top_k = 2,
+        routing = 'hard',
+        top_k = None,
         freeze_bert = True
     ).to(device)
     # elif model_type == 'text':
