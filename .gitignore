@@ -1,2 +1,8 @@
 *.pth
 __pycache__/
+report/*.out
+report/*.log
+report/*.synctex.gz
+report/*.aux
+report/*.fls
+report/*.fdb_latexmk

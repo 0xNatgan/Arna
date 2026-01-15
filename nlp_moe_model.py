@@ -30,17 +30,22 @@ class MoEModel(nn.Module):
 class TextExpert2(nn.Module):
     def __init__(self, hidden_dim, output_dim):
         super().__init__()
-        self.layers = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim * 2),
-            nn.LayerNorm(hidden_dim * 2),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.Linear(hidden_dim * 2, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, output_dim)
-        )
+        self.fc1 = nn.Linear(hidden_dim, hidden_dim * 2)
+        self.ln1 = nn.LayerNorm(hidden_dim * 2)
+        self.fc2 = nn.Linear(hidden_dim * 2, hidden_dim)
+        self.ln2 = nn.LayerNorm(hidden_dim)
+        self.fc_out = nn.Linear(hidden_dim, output_dim)
+        self.dropout = nn.Dropout(0.3)
+        self.act = nn.GELU()
+
     def forward(self, x):
-        return self.layers(x)
+        # First block with residual
+        h = self.act(self.ln1(self.fc1(x)))
+        h = self.dropout(h)
+        h = self.ln2(self.fc2(h))
+        h = h + x  # Residual connection
+        h = self.act(h)
+        return self.fc_out(h)
 
 class TextExpert(nn.Module):
     def __init__(self, hidden_dim, output_dim,dropout=0.3):

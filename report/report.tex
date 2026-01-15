@@ -21,7 +21,7 @@
 \section{Introduction et Revue du Concept de MoE}
 L'objectif de ce projet est d'explorer l'architecture \textit{Mixture of Experts} (MoE) pour la classification de textes. Les modèles MoE reposent sur le principe de ``diviser pour régner'' : au lieu d'utiliser un seul réseau dense, on utilise plusieurs sous-réseaux spécialisés (\textbf{Experts}) et un mécanisme de routage (\textbf{Gating Network}) qui décide quel expert doit traiter quel échantillon.
 
-\section{Description du Modèle}
+\section{Description des Modèles}
 \subsection{Architecture}
 Notre modèle, \texttt{MoEBertModel}, utilise \textbf{BERT} (\textit{bert-base-uncased}) comme extracteur de caractéristiques (backbone). La sortie du \textit{pooler} de BERT alimente :
 \begin{itemize}
