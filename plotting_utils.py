@@ -468,6 +468,31 @@ def plot_expert_usage_std_evolution(expert_usage_history, save_path='metrics/exp
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.show()
 
+def plot_balance_results(balance_df, save_path='metrics/load_balance_study.png'):
+    """Visualize load balancing results"""
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    # Create labels from load_balance column
+    labels = ['With Load Balance' if lb else 'Without Load Balance'
+              for lb in balance_df['load_balance']]
+    colors = ['mediumseagreen' if lb else 'coral'
+              for lb in balance_df['load_balance']]
+
+    bars = ax.bar(range(len(balance_df)), balance_df['test_acc'], color=colors)
+    ax.set_xticks(range(len(balance_df)))
+    ax.set_xticklabels(labels)
+    ax.set_ylabel('Test Accuracy')
+    ax.set_title('Impact of Load Balancing on Accuracy')
+    ax.set_ylim([balance_df['test_acc'].min() - 0.05, 1.0])
+
+    # Add value labels on bars
+    for bar, acc in zip(bars, balance_df['test_acc']):
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+                f'{acc:.4f}', ha='center', va='bottom', fontsize=11)
+
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    plt.show()
 def get_hyperparameters_text():
     return f"""Hyperparameters:
 Batch Size: {BATCH_SIZE}

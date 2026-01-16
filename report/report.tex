@@ -47,7 +47,7 @@ L'architecture générale d'un modèle MoE peut être représentée comme suit :
           Le routeur prend l'entrée et produit un ensemble de poids ou de probabilités qui indiquent l'importance relative de chaque expert pour cette entrée.
           Le routeur peut être un réseau de neurones simple ou un modèle plus complexe.
           Le routeur peut utiliser différentes stratégies de routage, comme le routage dur (hard routing) où un seul expert est sélectionné, ou le routage doux (soft routing) où plusieurs experts sont combinés.
-          Il existe aussi des variantes plus hybrides avec un une selection d'experts en focntion d'un seuil.
+          Il existe aussi des variantes plus hybrides avec un une selection d'experts en fonction d'un seuil.
 
     \item \textbf{Les experts (Experts)} :
           Ce sont des sous-modèles spécialisés qui se concentrent sur des aspects spécifiques de la tâche principale.
@@ -61,36 +61,11 @@ L'architecture générale d'un modèle MoE peut être représentée comme suit :
 
 \end{itemize}
 
-\subsection{Architecture Générale d'un MoE}
-L'architecture générale d'un modèle MoE peut être représentée comme suit :
-
-
-
-
-\begin{itemize}
-
-    \item \textbf{Les couches Mixture of Experts (MoE Layers)} :
-
-          Une couche MoE remplace une couche dense classique par un ensemble d'expertes en parallèle et
-          Chaque expert est un sous modèle spécialisé, la forme et lacomplexité des experts peuvent varier en fonction de la tâche principale et de la conception du MoE
-          mais leur rôle est le même : traiter une partie spécifique du problème.
-          Dans le cas ou tout les experts sont de même type, on parle de MoE homogène, sinon on parle de MoE hétérogène.
-          Les MoEhomogènesp
-          Les couches MoE remplacent les couches de réseau \textit{feed-forward} (FFN) denses.
-          Les couches MoE contiennent un certain nombre d'\textit{experts} (par exemple 8), où chaque expert est un réseau de neurones.
-          En pratique, les experts sont des FFN, mais ils peuvent également être des réseaux plus complexes, voire un MoE lui-même, conduisant à des \textbf{MoE hiérarchiques}.
-
-    \item \textbf{Réseau de routage (Gating Network)} :
-          Il détermine quels tokens sont envoyés à quels experts.
-          Par exemple, le token ``More'' peut être envoyé au deuxième expert, tandis que le token ``Parameters'' est envoyé au premier réseau.
-          Comme nous l'explorerons plus tard, il est possible d'envoyer un token à plusieurs experts simultanément.
-          La décision de \textbf{comment router un token vers un expert} est l'une des décisions majeures lors de la conception d'un MoE, le routeur est composé de paramètres appris et est pré-entraîné en même temps que le reste du réseau.
-\end{itemize}
-
-
 
 \subsection{Load Balancing Loss}
-Les modèles MoE classiques souffrent de problèmes de \textit{load balancing} : certains experts sont consultés fréquemment, tandis que d'autres sont rarement ou jamais sollicités. Pour encourager le routeur à sélectionner chaque expert avec une fréquence égale au sein de chaque batch, chaque couche MoE utilise des fonctions de perte auxiliaires.
+
+L'un des problèmes classiques des architectures MoE est le \textbf{load balancing} (équilibrage de la charge) entre les experts.
+Certains experts sont consultés fréquemment, tandis que d'autres sont rarement ou jamais sollicités. Pour encourager le routeur à sélectionner chaque expert avec une fréquence égale au sein de chaque batch, chaque couche MoE utilise des fonctions de perte auxiliaires.
 
 Le \textbf{Switch Transformer} simplifie cela en une seule fonction de perte auxiliaire. Soit $n$ le nombre d'experts, et pour un batch de requêtes $\{x_1, x_2, \ldots, x_T\}$, la perte auxiliaire est définie par :
 
@@ -114,7 +89,7 @@ Cette perte encourage une distribution uniforme de la charge entre les experts, 
     \item \textbf{Spécialisation} : Chaque expert peut se spécialiser dans un aspect particulier des données.
 \end{itemize}
 
-\section{Description des Modèles Implémentés}
+\section{Description des Modèles NLP Implémentés}
 \subsection{Bert MoE}
 \subsubsection{Architecture}
 Notre modèle, \texttt{MoEBertModel}, utilise \textbf{BERT} (\textit{bert-base-uncased}) comme extracteur de caractéristiques (backbone). La sortie du \textit{pooler} de BERT alimente :
@@ -123,6 +98,7 @@ Notre modèle, \texttt{MoEBertModel}, utilise \textbf{BERT} (\textit{bert-base-u
     \item Une liste de $N$ experts (\texttt{TextExpert}), chacun étant un réseau de neurones \textit{feed-forward} avec normalisation et dropout.
 \end{itemize}
 
+
 \subsubsection{Choix de Conception}
 \begin{itemize}
     \item \textbf{Soft Routing} : Nous utilisons un routage "doux" via une fonction Softmax pour permettre un apprentissage stable de tous les experts simultanément.
@@ -130,8 +106,6 @@ Notre modèle, \texttt{MoEBertModel}, utilise \textbf{BERT} (\textit{bert-base-u
     \item \textbf{GELU} (Gaussian Error Linear Unit) : en raison de ses performances supérieures dans les tâches NLP par rapport à ReLU.
 \end{itemize}
 
-
-Nous avons effectué des expériences avec les deux types de routage : \textbf{Soft} et \textbf{Hard}. Le routage dur sélectionne les $k$ meilleurs experts, réduisant ainsi le coût computationnel à l'inférence, mais peut être plus difficile à entraîner.
 \section{Protocole Expérimental et Hyperparamètres}
 Le meilleur entraînement avec BERT unfreeze a été effectué sur le dataset AG News.
 \begin{table}[H]
@@ -225,7 +199,11 @@ Pour le modèle NLP, nous avons entrainé plusieurs configurations MoE avec diff
 Comme modele de base, nous avons utilise BERT base uncased, et nous avons freeze les poids de BERT pendant l'entrainement des modèles MoE pour réduire le cout computationnel.
 Lorsque nous entrainons le modele MoE avec BERT freeze, nous obtenons une accuracy proche de 88\%, ce qui est comparable au modele BERT standard. Nous avons egalement observe l'impact dur
 load balancing, qui a permis d'ameliorer la repartition de l'utilisation des experts et d'eviter l'effondrement de certains experts.
-Ce qui est visible par exemple dans la figure ci dessous
+
+Nous avons construit 3 modeles differents :
+-  Un modele avec Bert comme le Backbone
+- Un modele Transformer classique avec une couche MoE
+- Un modele Transformer
 
 \begin{figure}[H]
     \centering
@@ -264,4 +242,20 @@ Utiliser des fonctions de perte de \textit{Load Balancing} plus agressives ou ex
 Mixer des experts de différentes architectures (par exemple, CNN, RNN) pour capturer diverses caractéristiques des données textuelles. Cela
 pourrait ameliorer la specialisation des experts et la performance globale du modele.
 Nous pourrons aussi ajouter du noise au gating ou encore ajouter une couche d'adaptation avant le gating.
+
+
+
+\subsection{CNN MoE pour la Classification d'Images du dataset Mnist}
+\subsubsection{Architecture}
+Notre Gating Network est un CNN simple ou les sorties de la derniere couche convolutive sont aplaties et passées à une couche linéaire pour produire les scores des experts.
+Chaque expert est un CNN un peu plus profond que le routeur, avec plusieurs couches convolutives suivies de couches fully connected.
+en fonction du type de routage choisi (soft, hard, hybrid), les experts sont sélectionnés et leurs sorties combinées pour produire la sortie finale du modèle.
+\subsubsection{Choix de Conception}
+\begin{itemize}
+\item \textbf{Entrainement} : L'entrainement des experts et du routeur se fait simultanément pour permettre au routeur d'apprendre à sélectionner les experts les plus pertinents en fonction des données d'entrée.
+\item \textbf{Parametres d'entrainement} : Durant l'entrainement le routage est effectué en mode soft pour permettre une exploration complète et un entraînement complet des experts.
+\item \textbf{Load balancing} : Nous avons implémenté une perte de load balancing pour encourager une utilisation uniforme des experts et éviter un déséquilibrage dans le routage des experts.
+\item \textbf{Routage Hybride} : Le routage hybride consiste à selectionner les experts dont les scores depassent un certain seuil, permettant ainsi une flexibilité entre les deux extremes il permet d'avoir un score légerement plus élévé lors des tests mais peut utiliser plus d'experts que le routage hard.
+\end{itemize}
+
 \end{document}

@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-class MNIST_CNN1(nn.Module):   
+class MNIST_CNN1(nn.Module):
     def __init__(self):
         super(MNIST_CNN1, self).__init__()
         # layers : conv1 (k3) -> MaxPool -> conv2 (k3) -> linear 64-128 -> linear2 128-10 -> ReLU(output)
@@ -58,7 +58,7 @@ class MNIST_CNN3(nn.Module):
         x = self.pool(self.relu(self.conv2(x)))
         return self.fc(x.view(x.size(0), -1))
 
-    
+
 class MNIST_MediumCNN(nn.Module):
     def __init__(self):
         super(MNIST_MediumCNN, self).__init__()

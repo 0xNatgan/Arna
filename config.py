@@ -10,7 +10,7 @@ TOP_K = 4 # Only used if ROUTING is 'hard'
 FREEZE_BERT = True  # Whether to freeze BERT layers during training
 LOAD_BALANCE = True  # Whether to use load balancing loss
 LOAD_BALANCE_COEF = 0.2  # Coefficient for load balancing loss
-
+DROPOUT = 0.3
 
 EMBEDDING_DIM = 256
 HIDDEN_DIM = 512
