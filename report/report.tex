@@ -11,7 +11,9 @@
 \usepackage{geometry}
 \usepackage{float}
 \usepackage{subcaption}
+\usepackage{tikz}
 \geometry{margin=2.5cm}
+\usetikzlibrary{shapes.geometric, arrows, positioning, fit, backgrounds}
 
 \title{Rapport de Projet : Classification de News via Mixture of Experts (MoE)}
 \author{Votre Nom}
@@ -22,14 +24,14 @@
 \maketitle
 
 \section{Introduction et Revue du Concept de MoE}
-L'objectif de ce projet est d'explorer l'architecture \textit{Mixture of Experts} (MoE) pour la classification de textes. Les modèles MoE reposent sur le principe de ``diviser pour régner'' : au lieu d'utiliser un seul réseau dense, on utilise plusieurs sous-réseaux spécialisés (\textbf{Experts}) et un mécanisme de routage (\textbf{Gating Network}) qui décide quel expert doit traiter quel échantillon.
-\subsection{Modèles MoE}
-Les modèles MoE se composent de deux composants principaux :
-\begin{itemize}
-    \item \textbf{Couches MoE éparses} : Elles remplacent les couches de réseau \textit{feed-forward} (FFN) denses. Les couches MoE contiennent un certain nombre d'\textit{experts} (par exemple 8), où chaque expert est un réseau de neurones. En pratique, les experts sont des FFN, mais ils peuvent également être des réseaux plus complexes, voire un MoE lui-même, conduisant à des \textbf{MoE hiérarchiques}.
+L'objectif de ce projet est d'explorer l'architecture \textbf{Mixture of Experts} (MoE) et son application à différentes tâches dans ce projet nous nous sommes intréssés à la classification de texte et d'images. \newline
+Le concept de MoE repose sur le constat qu'un modèle unique peut avoir du mal à exceller dans l'ensemble des tâches ou les domaines qui lui sont confiés sans devenir excessivement complexe et coûteux en termes de calcul.
+L'idée ppour surmonter la dificulté de modélisation de tâches complexes avec un seul modèle dense est de diviser le modèle en un ensemple de sous-modèle plus petits et spécialisés appelés \textbf{experts}
+et d'un mécanisme de routage appelé \textbf{gating network} qui décide quel expert doit traiter chaque entrée.
+Ainsi au on cherche à achever des performances similaires voir supérieures à celles d'un modèle dense tout en réduisant le coût calcul global.
 
-    \item \textbf{Réseau de routage (Gate/Router)} : Il détermine quels tokens sont envoyés à quels experts. Par exemple, le token ``More'' peut être envoyé au deuxième expert, tandis que le token ``Parameters'' est envoyé au premier réseau. Comme nous l'explorerons plus tard, il est possible d'envoyer un token à plusieurs experts simultanément. La décision de \textbf{comment router un token vers un expert} est l'une des décisions majeures lors de la conception d'un MoE, le routeur est composé de paramètres appris et est pré-entraîné en même temps que le reste du réseau.
-\end{itemize}
+\subsection{Architecture Générale d'un MoE}
+L'architecture générale d'un modèle MoE peut être représentée comme suit :
 
 \begin{figure}[H]
     \centering
@@ -38,6 +40,54 @@ Les modèles MoE se composent de deux composants principaux :
     \caption{Architecture MoE}
     \label{fig:Architecture_Moe}
 \end{figure}
+
+\begin{itemize}
+    \item \textbf{Le routeur (Gating Network)} :
+          C'est un modèle qui décide quel expert doit traiter chaque entrée.
+          Le routeur prend l'entrée et produit un ensemble de poids ou de probabilités qui indiquent l'importance relative de chaque expert pour cette entrée.
+          Le routeur peut être un réseau de neurones simple ou un modèle plus complexe.
+          Le routeur peut utiliser différentes stratégies de routage, comme le routage dur (hard routing) où un seul expert est sélectionné, ou le routage doux (soft routing) où plusieurs experts sont combinés.
+          Il existe aussi des variantes plus hybrides avec un une selection d'experts en focntion d'un seuil.
+
+    \item \textbf{Les experts (Experts)} :
+          Ce sont des sous-modèles spécialisés qui se concentrent sur des aspects spécifiques de la tâche principale.
+          Chaque expert peut être un réseau de neurones, un arbre de décision, ou tout autre type de modèle.
+          Certains sont concus spécialement pour une tâche particulière à l'avance d'autres se spécialisent durant l'entrainement.
+          Dans certains modèles MoE les experts font tous partie d'un même réseau de neurones ou seulement une partie s'active pour chaque experts. ce qui permet de réduire le cout mémoire du modèle.
+
+    \item \textbf{Combinaison des sorties} :
+          Une fois que les experts ont traité l'entrée, leurs sorties sont combinées pour produire la sortie finale du modèle MoE.
+          La combinaison peut être une simple moyenne pondérée, une somme, ou une opération plus complexe en fonction des poids fournis par le routeur.
+
+\end{itemize}
+
+\subsection{Architecture Générale d'un MoE}
+L'architecture générale d'un modèle MoE peut être représentée comme suit :
+
+
+
+
+\begin{itemize}
+
+    \item \textbf{Les couches Mixture of Experts (MoE Layers)} :
+
+          Une couche MoE remplace une couche dense classique par un ensemble d'expertes en parallèle et
+          Chaque expert est un sous modèle spécialisé, la forme et lacomplexité des experts peuvent varier en fonction de la tâche principale et de la conception du MoE
+          mais leur rôle est le même : traiter une partie spécifique du problème.
+          Dans le cas ou tout les experts sont de même type, on parle de MoE homogène, sinon on parle de MoE hétérogène.
+          Les MoEhomogènesp
+          Les couches MoE remplacent les couches de réseau \textit{feed-forward} (FFN) denses.
+          Les couches MoE contiennent un certain nombre d'\textit{experts} (par exemple 8), où chaque expert est un réseau de neurones.
+          En pratique, les experts sont des FFN, mais ils peuvent également être des réseaux plus complexes, voire un MoE lui-même, conduisant à des \textbf{MoE hiérarchiques}.
+
+    \item \textbf{Réseau de routage (Gating Network)} :
+          Il détermine quels tokens sont envoyés à quels experts.
+          Par exemple, le token ``More'' peut être envoyé au deuxième expert, tandis que le token ``Parameters'' est envoyé au premier réseau.
+          Comme nous l'explorerons plus tard, il est possible d'envoyer un token à plusieurs experts simultanément.
+          La décision de \textbf{comment router un token vers un expert} est l'une des décisions majeures lors de la conception d'un MoE, le routeur est composé de paramètres appris et est pré-entraîné en même temps que le reste du réseau.
+\end{itemize}
+
+
 
 \subsection{Load Balancing Loss}
 Les modèles MoE classiques souffrent de problèmes de \textit{load balancing} : certains experts sont consultés fréquemment, tandis que d'autres sont rarement ou jamais sollicités. Pour encourager le routeur à sélectionner chaque expert avec une fréquence égale au sein de chaque batch, chaque couche MoE utilise des fonctions de perte auxiliaires.
@@ -65,7 +115,7 @@ Cette perte encourage une distribution uniforme de la charge entre les experts, 
 \end{itemize}
 
 \section{Description des Modèles Implémentés}
-\subsection{NLP Model MoE}
+\subsection{Bert MoE}
 \subsubsection{Architecture}
 Notre modèle, \texttt{MoEBertModel}, utilise \textbf{BERT} (\textit{bert-base-uncased}) comme extracteur de caractéristiques (backbone). La sortie du \textit{pooler} de BERT alimente :
 \begin{itemize}
@@ -84,7 +134,7 @@ Notre modèle, \texttt{MoEBertModel}, utilise \textbf{BERT} (\textit{bert-base-u
 Nous avons effectué des expériences avec les deux types de routage : \textbf{Soft} et \textbf{Hard}. Le routage dur sélectionne les $k$ meilleurs experts, réduisant ainsi le coût computationnel à l'inférence, mais peut être plus difficile à entraîner.
 \section{Protocole Expérimental et Hyperparamètres}
 Le meilleur entraînement avec BERT unfreeze a été effectué sur le dataset AG News.
-\begin{table}[h]
+\begin{table}[H]
     \centering
     \begin{tabular}{lc}
         \toprule
@@ -106,7 +156,7 @@ Le meilleur entraînement avec BERT unfreeze a été effectué sur le dataset AG
     \caption{Configuration des hyperparamètres}
 \end{table}
 Le meilleur entraînement avec BERT freeze a été effectué sur le dataset AG News.
-\begin{table}[h]
+\begin{table}[H]
     \centering
     \begin{tabular}{lc}
         \toprule
@@ -127,6 +177,48 @@ Le meilleur entraînement avec BERT freeze a été effectué sur le dataset AG N
     \end{tabular}
     \caption{Configuration des hyperparamètres}
 \end{table}
+\subsection{Transformer MoE}
+
+\subsection{Transformer MoE Layer}
+Nous avons également implémenté un modèle Transformer avec des couches MoE personnalisées. Le modèle, \texttt{MoETransformerModelV2}, utilise des couches d'attention multi-têtes suivies de couches MoE éparses. Chaque couche MoE contient plusieurs experts, chacun étant un réseau feed-forward.
+
+\subsubsection{Architecture MoE Transformer V2}
+
+Notre modèle \texttt{MoETransformerModelV2} suit l'architecture Switch Transformer~ en intégrant des couches Mixture-of-Experts (MoE) \textbf{à l'intérieur} de chaque bloc Transformer.
+
+\paragraph{Embeddings.} Les tokens d'entrée sont convertis en vecteurs via une couche d'embedding de dimension $d_{model}$, additionnés avec des embeddings positionnels apprenables.
+
+\paragraph{Couches MoE Transformer.} Le modèle empile $N$ couches identiques, chacune composée de :
+\begin{enumerate}
+    \item \textbf{Multi-Head Self-Attention} avec connexion résiduelle et normalisation de couche.
+    \item \textbf{MoE Feed-Forward} qui remplace le FFN dense standard :
+          \begin{itemize}
+              \item Un \textit{réseau de gating} $g(x) = \text{softmax}(W_g x)$ calcule les poids de routage pour $E$ experts.
+              \item Seuls les \textit{Top-K} experts sont activés pour chaque token.
+              \item La sortie est la somme pondérée : $y = \sum_{i \in \text{Top-K}} g_i(x) \cdot E_i(x)$
+          \end{itemize}
+\end{enumerate}
+
+\paragraph{Classification.} Après les $N$ couches, une normalisation finale est appliquée, suivie d'un mean-pooling sur les tokens non-masqués et d'un classifieur linéaire.
+
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{ll}
+        \toprule
+        Paramètre                         & Valeur \\
+        \midrule
+        Dimension embedding ($d_{model}$) & 256    \\
+        Dimension FFN ($d_{ff}$)          & 512    \\
+        Nombre de têtes d'attention       & 4      \\
+        Nombre de couches ($N$)           & 2      \\
+        Nombre d'experts ($E$)            & 8      \\
+        Top-K                             & 4      \\
+        Dropout                           & 0.3    \\
+        \bottomrule
+    \end{tabular}
+    \caption{Hyperparamètres du MoE Transformer V2.}
+\end{table}
 \section{Résultats Expérimentaux et Interprétation}
 \subsection{NLP}
 Pour le modèle NLP, nous avons entrainé plusieurs configurations MoE avec difficiles types de routage et comparé leurs performances à un modèle BERT standard.
@@ -139,14 +231,14 @@ Ce qui est visible par exemple dans la figure ci dessous
     \centering
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{../metrics/model 2/expert_usage_heatmap.png}
+        \includegraphics[width=\textwidth]{../NLP_MoE/metrics/model 2/expert_usage_heatmap.png}
         \caption{Soft routing avec load balancing}
         \label{fig:expert_soft}
     \end{subfigure}
     \hfill
     \begin{subfigure}[b]{0.48\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{../metrics/model 1/expert_usage_heatmap.png}
+        \includegraphics[width=\textwidth]{../NLP_MoE/metrics/model 1/expert_usage_heatmap.png}
         \caption{Hard routing}
         \label{fig:expert_hard}
     \end{subfigure}

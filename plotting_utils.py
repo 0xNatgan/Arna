@@ -278,8 +278,6 @@ def analyze_expert_usage(model, dataloader, device, num_experts, num_classes):
             labels = batch['label'].to(device)
 
             # Get BERT embeddings
-            bert_output = model.bert(input_ids=input_ids, attention_mask=attention_mask)
-            pooled_output = bert_output.pooler_output
 
             # Get routing weights from the MoE layer
             routing_weights = model.router(input_ids=input_ids, attention_mask=attention_mask)  # [batch_size, num_experts]
