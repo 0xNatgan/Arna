@@ -4,10 +4,13 @@
 \usepackage[T1]{fontenc}
 \usepackage[french]{babel}
 \usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{hyperref}
 \usepackage{geometry}
+\usepackage{float}
+\usepackage{subcaption}
 \geometry{margin=2.5cm}
 
 \title{Rapport de Projet : Classification de News via Mixture of Experts (MoE)}
@@ -20,23 +23,80 @@
 
 \section{Introduction et Revue du Concept de MoE}
 L'objectif de ce projet est d'explorer l'architecture \textit{Mixture of Experts} (MoE) pour la classification de textes. Les modèles MoE reposent sur le principe de ``diviser pour régner'' : au lieu d'utiliser un seul réseau dense, on utilise plusieurs sous-réseaux spécialisés (\textbf{Experts}) et un mécanisme de routage (\textbf{Gating Network}) qui décide quel expert doit traiter quel échantillon.
+\subsection{Modèles MoE}
+Les modèles MoE se composent de deux composants principaux :
+\begin{itemize}
+    \item \textbf{Couches MoE éparses} : Elles remplacent les couches de réseau \textit{feed-forward} (FFN) denses. Les couches MoE contiennent un certain nombre d'\textit{experts} (par exemple 8), où chaque expert est un réseau de neurones. En pratique, les experts sont des FFN, mais ils peuvent également être des réseaux plus complexes, voire un MoE lui-même, conduisant à des \textbf{MoE hiérarchiques}.
 
-\section{Description des Modèles}
-\subsection{Architecture}
+    \item \textbf{Réseau de routage (Gate/Router)} : Il détermine quels tokens sont envoyés à quels experts. Par exemple, le token ``More'' peut être envoyé au deuxième expert, tandis que le token ``Parameters'' est envoyé au premier réseau. Comme nous l'explorerons plus tard, il est possible d'envoyer un token à plusieurs experts simultanément. La décision de \textbf{comment router un token vers un expert} est l'une des décisions majeures lors de la conception d'un MoE, le routeur est composé de paramètres appris et est pré-entraîné en même temps que le reste du réseau.
+\end{itemize}
+
+
+\subsection{Load Balancing Loss}
+Les modèles MoE classiques souffrent de problèmes de \textit{load balancing} : certains experts sont consultés fréquemment, tandis que d'autres sont rarement ou jamais sollicités. Pour encourager le routeur à sélectionner chaque expert avec une fréquence égale au sein de chaque batch, chaque couche MoE utilise des fonctions de perte auxiliaires.
+
+Le \textbf{Switch Transformer} simplifie cela en une seule fonction de perte auxiliaire. Soit $n$ le nombre d'experts, et pour un batch de requêtes $\{x_1, x_2, \ldots, x_T\}$, la perte auxiliaire est définie par :
+
+\begin{equation}
+    \mathcal{L}_{\text{aux}} = n \sum_{i=1}^{n} f_i \cdot P_i
+\end{equation}
+
+où :
+\begin{itemize}
+    \item $f_i = \frac{1}{T} \sum_{t=1}^{T} \mathbb{1}\{\text{argmax}(g(x_t)) = i\}$ est la fraction des tokens routés vers l'expert $i$
+    \item $P_i = \frac{1}{T} \sum_{t=1}^{T} p_{i}(x_t)$ est la probabilité moyenne assignée à l'expert $i$ par le routeur
+\end{itemize}
+
+Cette perte encourage une distribution uniforme de la charge entre les experts, minimisant ainsi le risque d'\textit{expert collapse}.
+\subsection{Avantages des MoE}
+\begin{itemize}
+    \item \textbf{Spécialisation} : Chaque expert peut se spécialiser dans un aspect particulier des données.
+    \item \textbf{Scalabilité} : Permet d'augmenter la capacité du modèle sans augmenter proportionnellement le coût computationnel.
+    \item \textbf{Efficacité} : En n'activant qu'un sous-ensemble d'experts, on réduit le coût de calcul.
+\end{itemize}
+
+\section{Description des Modèles Implémentés}
+\subsection{NLP Model MoE}
+\subsubsection{Architecture}
 Notre modèle, \texttt{MoEBertModel}, utilise \textbf{BERT} (\textit{bert-base-uncased}) comme extracteur de caractéristiques (backbone). La sortie du \textit{pooler} de BERT alimente :
 \begin{itemize}
     \item Un réseau de routage (couche linéaire) qui génère des poids pour chaque expert.
     \item Une liste de $N$ experts (\texttt{TextExpert}), chacun étant un réseau de neurones \textit{feed-forward} avec normalisation et dropout.
 \end{itemize}
 
-\subsection{Choix de Conception}
+\subsubsection{Choix de Conception}
 \begin{itemize}
     \item \textbf{Soft Routing} : Nous utilisons un routage "doux" via une fonction Softmax pour permettre un apprentissage stable de tous les experts simultanément.
     \item \textbf{Exploration} : Ajout d'un bruit gaussien sur les scores du router durant l'entraînement pour éviter l'effondrement précoce sur un seul expert.
+    \item \textbf{GELU} (Gaussian Error Linear Unit) : en raison de ses performances supérieures dans les tâches NLP par rapport à ReLU.
 \end{itemize}
 
+
+Nous avons effectué des expériences avec les deux types de routage : \textbf{Soft} et \textbf{Hard}. Le routage dur sélectionne les $k$ meilleurs experts, réduisant ainsi le coût computationnel à l'inférence, mais peut être plus difficile à entraîner.
 \section{Protocole Expérimental et Hyperparamètres}
-L'entraînement a été effectué sur le dataset AG News.
+Le meilleur entraînement avec BERT unfreeze a été effectué sur le dataset AG News.
+\begin{table}[h]
+    \centering
+    \begin{tabular}{lc}
+        \toprule
+        Hyperparamètre        & Valeur             \\
+        \midrule
+        Batch Size            & 64                 \\
+        Nombre d'Époques      & 3                  \\
+        Learning Rate         & $2 \times 10^{-5}$ \\
+        Nombre d'Experts      & 8                  \\
+        Architecture Backbone & BERT Base          \\
+        Max Length Texte      & 128                \\
+        Routing               & Soft               \\
+        Top K Experts         & 6                  \\
+        Freeze Bert           & False              \\
+        Load Balancing Coef   & 0.01               \\
+        Load Balancing        & True               \\
+        \bottomrule
+    \end{tabular}
+    \caption{Configuration des hyperparamètres}
+\end{table}
+Le meilleur entraînement avec BERT freeze a été effectué sur le dataset AG News.
 \begin{table}[h]
     \centering
     \begin{tabular}{lc}
@@ -48,24 +108,56 @@ L'entraînement a été effectué sur le dataset AG News.
         Learning Rate         & $3 \times 10^{-5}$ \\
         Nombre d'Experts      & 8                  \\
         Architecture Backbone & BERT Base          \\
+        Max Length Texte      & 128                \\
+        Routing               & Soft               \\
+        Top K Experts         & 6                  \\
+        Freeze Bert           & True               \\
+        Load Balancing Coef   & 0.5                \\
+        Load Balancing        & True               \\
         \bottomrule
     \end{tabular}
     \caption{Configuration des hyperparamètres}
 \end{table}
-
 \section{Résultats Expérimentaux et Interprétation}
-Le modèle atteint une précision globale de \textbf{87 \%}.
-\begin{itemize}
-    \item \textbf{Performance par classe} : La classe 2 montre la meilleure performance avec un F1-score de 0.95.
-    \item \textbf{Usage des experts} : L'analyse thermique (heatmap) montre une spécialisation des experts. Certains experts traitent des caractéristiques transversales tandis que d'autres se spécialisent sur des thématiques précises.
-\end{itemize}
+\subsection{NLP}
+Pour le modèle NLP, nous avons entrainé plusieurs configurations MoE avec difficiles types de routage et comparé leurs performances à un modèle BERT standard.
+Comme modele de base, nous avons utilise BERT base uncased, et nous avons freeze les poids de BERT pendant l'entrainement des modèles MoE pour réduire le cout computationnel.
+Lorsque nous entrainons le modele MoE avec BERT freeze, nous obtenons une accuracy proche de 88\%, ce qui est comparable au modele BERT standard. Nous avons egalement observe l'impact dur
+load balancing, qui a permis d'ameliorer la repartition de l'utilisation des experts et d'eviter l'effondrement de certains experts.
+Ce qui est visible par exemple dans la figure ci dessous
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../metrics/model 2/expert_usage_heatmap.png}
+        \caption{Soft routing avec load balancing}
+        \label{fig:expert_soft}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../metrics/model 1/expert_usage_heatmap.png}
+        \caption{Hard routing}
+        \label{fig:expert_hard}
+    \end{subfigure}
+    \caption{Comparaison de l'utilisation des experts selon le type de routage.}
+    \label{fig:expert_comparison}
+\end{figure}
+Nous remarquons que l'usage des experts est assez bien repartis lorsqu'on utilise un routage soft et un load-balancing de 0.5
+Cependant lorsqu'on passe à un routage hard, on remarque que l'usage des experts devient plus inégal, ce qui peut indiquer un effondrement de certains experts.
+Toutes les figures sont disponibles dans le dossier metrics.
 
 \section{Discussion Critique}
 \subsection{Forces}
 Capacité de spécialisation et maintien d'une haute précision sur des classes complexes grâce à la modularité des experts.
 \subsection{Limites}
+Risque de genéralisation des experts sur des sous-ensembles spécifiques du dataset, potentiellement limitant la robustesse globale du modèle.
 Risque d'\textbf{Expert Collapse} (effondrement) où seuls quelques experts sont activés, rendant le reste de la capacité du modèle inutile si le router n'est pas bien régularisé.
 \subsection{Perspectives}
+\subsubsection{NLP}
 Utiliser des fonctions de perte de \textit{Load Balancing} plus agressives ou explorer le \textbf{Top-k routing} pour réduire le coût computationnel à l'inférence.
-
+Mixer des experts de différentes architectures (par exemple, CNN, RNN) pour capturer diverses caractéristiques des données textuelles. Cela
+pourrait ameliorer la specialisation des experts et la performance globale du modele.
+Nous pourrons aussi ajouter du noise au gating ou encore ajouter une couche d'adaptation avant le gating.
 \end{document}

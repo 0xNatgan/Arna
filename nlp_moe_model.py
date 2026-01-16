@@ -1,3 +1,4 @@
+from pyexpat import model
 import torch as t
 import torch.nn as nn
 import torch.optim as optim
@@ -28,15 +29,15 @@ class MoEModel(nn.Module):
 
 
 class TextExpert2(nn.Module):
-    def __init__(self, hidden_dim, output_dim):
+    def __init__(self, hidden_dim, output_dim, dropout=0.5):
         super().__init__()
         self.fc1 = nn.Linear(hidden_dim, hidden_dim * 2)
         self.ln1 = nn.LayerNorm(hidden_dim * 2)
         self.fc2 = nn.Linear(hidden_dim * 2, hidden_dim)
         self.ln2 = nn.LayerNorm(hidden_dim)
         self.fc_out = nn.Linear(hidden_dim, output_dim)
-        self.dropout = nn.Dropout(0.3)
-        self.act = nn.GELU()
+        self.dropout = nn.Dropout(dropout)
+        self.act = nn.ReLU()
 
     def forward(self, x):
         # First block with residual
@@ -60,40 +61,40 @@ class TextExpert(nn.Module):
     def forward(self, x):
         return self.layers(x)
 
-class MoETextModel(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, output_dim, expert_number,num_heads=4,num_layers=2,freeze_bert=False):
-        super().__init__()
-        self.embedding = nn.Embedding(vocab_size, embedding_dim)
-        encoder_layer = nn.TransformerEncoderLayer(
-            d_model = embedding_dim,
-            nhead = num_heads,
-            dim_feedforward = hidden_dim,
-            batch_first = True
-        )
-        if freeze_bert:
-            for param in self.bert.parameters():
-                param.requires_grad = False
-        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
-        self.experts = nn.ModuleList(
-            [TextExpert(hidden_dim, output_dim) for _ in range(expert_number)]
-        )
-        self.gating_network = nn.Linear(embedding_dim, expert_number)
+# class MoETextModel(nn.Module):
+#     def __init__(self, vocab_size, embedding_dim, hidden_dim, output_dim, expert_number,num_heads=4,num_layers=2,freeze_bert=False):
+#         super().__init__()
+#         self.embedding = nn.Embedding(vocab_size, embedding_dim)
+#         encoder_layer = nn.TransformerEncoderLayer(
+#             d_model = embedding_dim,
+#             nhead = num_heads,
+#             dim_feedforward = hidden_dim,
+#             batch_first = True
+#         )
+#         if freeze_bert:
+#             for param in self.bert.parameters():
+#                 param.requires_grad = False
+#         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+#         self.experts = nn.ModuleList(
+#             [TextExpert(hidden_dim, output_dim) for _ in range(expert_number)]
+#         )
+#         self.gating_network = nn.Linear(embedding_dim, expert_number)
 
-    def forward(self, x):
-        seq_len = x.size(1)
-        embedded = self.embedding(x) + self.pos_encoding[:, :seq_len, :]
-        encoded = self.encoder(embedded)
-        pooled = encoded.mean(dim=1)
+#     def forward(self, x):
+#         seq_len = x.size(1)
+#         embedded = self.embedding(x) + self.pos_encoding[:, :seq_len, :]
+#         encoded = self.encoder(embedded)
+#         pooled = encoded.mean(dim=1)
 
-        gating_weights = t.softmax(self.gating_network(pooled), dim=1)
-        expert_outputs = t.stack([expert(pooled) for expert in self.experts], dim=1)
-        output = t.bmm(gating_weights.unsqueeze(1), expert_outputs).squeeze(1)
-        return output
+#         gating_weights = t.softmax(self.gating_network(pooled), dim=1)
+#         expert_outputs = t.stack([expert(pooled) for expert in self.experts], dim=1)
+#         output = t.bmm(gating_weights.unsqueeze(1), expert_outputs).squeeze(1)
+#         return output
 
 class MoEBertModel(nn.Module): # MoE model using BERT as the base model for NEWS
     # Maybe will add noise_std later
     def __init__(self, pretrained_model_name, expert_number, output_dim,top_k=None,
-                 routing='soft',tau=1.0, freeze_bert=False,gumbel_hard=False):
+                 routing='soft',tau=1.0, freeze_bert=False,gumbel_hard=False,dropout=0.3):
         super().__init__()
         self.bert = tf.BertModel.from_pretrained(pretrained_model_name)
         hidden_size = self.bert.config.hidden_size
@@ -109,7 +110,7 @@ class MoEBertModel(nn.Module): # MoE model using BERT as the base model for NEWS
         #     [TextExpert(hidden_size, output_dim) for _ in range(expert_number // 2)] +
         #     [TextExpert2(hidden_size, output_dim) for _ in range(expert_number - expert_number // 2)]
         # )
-        self.experts=nn.ModuleList([TextExpert2(hidden_size, output_dim) for _ in range(expert_number)])
+        self.experts=nn.ModuleList([TextExpert2(hidden_size, output_dim,dropout) for _ in range(expert_number)])
         self.gating_network = nn.Linear(hidden_size, expert_number)
         # Testing initialization of gating network in order to balance expert usage
         nn.init.xavier_uniform_(self.gating_network.weight)
@@ -150,9 +151,36 @@ class MoEBertModel(nn.Module): # MoE model using BERT as the base model for NEWS
             expert_outputs = t.stack([expert(pooled_output) for expert in self.experts], dim=1)
             output = t.bmm(gating_weights.unsqueeze(1), expert_outputs).squeeze(1)
 
+
         return output
     def router(self, input_ids, attention_mask):
         bert_outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask)
         pooled_output = bert_outputs.pooler_output
         routing_weights = self.gating_network(pooled_output)
         return routing_weights
+
+class BertDenseBaseline(nn.Module):
+    """Baseline: BERT + single dense head (no MoE)"""
+    def __init__(self, pretrained_model_name, output_dim, hidden_multiplier=1, freeze_bert=False, dropout=0.3):
+        super().__init__()
+        self.bert = tf.BertModel.from_pretrained(pretrained_model_name)
+        hidden_dim = self.bert.config.hidden_size
+
+        if freeze_bert:
+            for param in self.bert.parameters():
+                param.requires_grad = False
+
+        # Single dense head with equivalent capacity to MoE experts
+        # If MoE has 8 experts with hidden_dim each, this has hidden_dim * hidden_multiplier
+        self.classifier = nn.Sequential(
+            nn.Linear(hidden_dim, hidden_dim * hidden_multiplier),
+            nn.LayerNorm(hidden_dim * hidden_multiplier),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim * hidden_multiplier, output_dim)
+        )
+
+    def forward(self, input_ids, attention_mask):
+        outputs = self.bert(input_ids=input_ids, attention_mask=attention_mask)
+        pooled = outputs.pooler_output
+        return self.classifier(pooled)
