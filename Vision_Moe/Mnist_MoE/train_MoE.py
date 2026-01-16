@@ -179,7 +179,7 @@ def moe_eval_on_class(model, k=None, selection_policy='hard', gumbell_softmax=Tr
         # Filter dataset for the current class
         class_indices = [i for i, (_, label) in enumerate(test_dataset) if label == class_label]
         class_subset = torch.utils.data.Subset(test_dataset, class_indices)
-        class_loader = DataLoader(dataset=class_subset, batch_size=64, shuffle=False)
+        class_loader = DataLoader(dataset=class_subset, batch_size=512, shuffle=False)
 
         test_loss, test_acc, repartition = evaluate_moe(model, class_loader, criterion, device, k=model.k_inference, selection_policy=selection_policy, gumbell_softmax=gumbell_softmax, verbose=True)
         class_informations[class_label] = {
