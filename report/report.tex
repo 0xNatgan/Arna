@@ -31,6 +31,13 @@ Les modèles MoE se composent de deux composants principaux :
     \item \textbf{Réseau de routage (Gate/Router)} : Il détermine quels tokens sont envoyés à quels experts. Par exemple, le token ``More'' peut être envoyé au deuxième expert, tandis que le token ``Parameters'' est envoyé au premier réseau. Comme nous l'explorerons plus tard, il est possible d'envoyer un token à plusieurs experts simultanément. La décision de \textbf{comment router un token vers un expert} est l'une des décisions majeures lors de la conception d'un MoE, le routeur est composé de paramètres appris et est pré-entraîné en même temps que le reste du réseau.
 \end{itemize}
 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.4\textwidth]{./img/moe_archi.png}
+    \centering
+    \caption{Architecture MoE}
+    \label{fig:Architecture_Moe}
+\end{figure}
 
 \subsection{Load Balancing Loss}
 Les modèles MoE classiques souffrent de problèmes de \textit{load balancing} : certains experts sont consultés fréquemment, tandis que d'autres sont rarement ou jamais sollicités. Pour encourager le routeur à sélectionner chaque expert avec une fréquence égale au sein de chaque batch, chaque couche MoE utilise des fonctions de perte auxiliaires.
@@ -50,9 +57,11 @@ où :
 Cette perte encourage une distribution uniforme de la charge entre les experts, minimisant ainsi le risque d'\textit{expert collapse}.
 \subsection{Avantages des MoE}
 \begin{itemize}
-    \item \textbf{Spécialisation} : Chaque expert peut se spécialiser dans un aspect particulier des données.
+    \item \textbf{Efficacité} : Seuls les experts compétents pour une partie spécifique du problème sont utilisés, ce qui permet d'économiser du temps et de la puissance de calcul.
+    \item \textbf{Flexibilité} : Il est facile d'ajouter de nouveaux experts ou de modifier leurs spécialités, rendant le système adaptable à différents problèmes.
+    \item \textbf{Meilleurs résultats} : Étant donné que chaque expert se concentre sur ce qu'il maîtrise le mieux, la solution globale est généralement plus précise et fiable.
     \item \textbf{Scalabilité} : Permet d'augmenter la capacité du modèle sans augmenter proportionnellement le coût computationnel.
-    \item \textbf{Efficacité} : En n'activant qu'un sous-ensemble d'experts, on réduit le coût de calcul.
+    \item \textbf{Spécialisation} : Chaque expert peut se spécialiser dans un aspect particulier des données.
 \end{itemize}
 
 \section{Description des Modèles Implémentés}
