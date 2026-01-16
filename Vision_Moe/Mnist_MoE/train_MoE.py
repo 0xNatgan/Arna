@@ -13,12 +13,12 @@ from .gating_model import GatingNetwork
 
 def create_moe_model(nb_experts=4, k_training=2, k_inference=1, tau=0.8, lambda_balance=0.05):
     """
-    Factory function to create a MoE model using the CNN experts defined in base_models.
+    Factory function to create a MoE model.
+    Modified to use homogeneous experts (MNIST_CNN2) to prevent router collapse due to architecture quality variance.
     """
-    expert_list = [MNIST_CNN1, MNIST_CNN2, MNIST_CNN3]
-    experts = []
-    for _ in range(nb_experts):
-        experts.append(choice(expert_list)())
+    # Stick to the strongest architecture to enforce competition based on specialization, not capacity.
+    expert_class = MNIST_CNN2 
+    experts = [expert_class() for _ in range(nb_experts)]
     gating_network = GatingNetwork(num_experts=nb_experts)
     
     return MoE_Model(
@@ -30,7 +30,7 @@ def create_moe_model(nb_experts=4, k_training=2, k_inference=1, tau=0.8, lambda_
         lambda_balance=lambda_balance
     )
 
-def train_moe_one_epoch(model: MoE_Model, 
+def train_moe_one_epoch(model: MoE_Model,
                         train_loader, 
                         optimizer, 
                         criterion, 
@@ -114,11 +114,12 @@ def evaluate_moe(model: MoE_Model, test_loader, criterion, device, k=None, selec
 
 def moe_train_loop(model, epochs=10, k=None, selection_policy_t='soft', selection_policy_i='hybrid', gumbell_softmax_t=True, gumbell_softmax_i=True, threshold=None):
         
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     criterion = torch.nn.CrossEntropyLoss()
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
 
 
     # Data loading
@@ -127,15 +128,14 @@ def moe_train_loop(model, epochs=10, k=None, selection_policy_t='soft', selectio
     train_dataset = datasets.MNIST(root=data_path, train=True, download=True, transform=transform)
     test_dataset = datasets.MNIST(root=data_path, train=False, download=True, transform=transform)
 
-    train_loader = DataLoader(dataset=train_dataset, batch_size=64, shuffle=True)
-    test_loader = DataLoader(dataset=test_dataset, batch_size=64, shuffle=False)
+    train_loader = DataLoader(dataset=train_dataset, batch_size=256, shuffle=True)
+    test_loader = DataLoader(dataset=test_dataset, batch_size=256, shuffle=False)
 
 
     print(f"\nStarting MoE training...")
     print(f"Number of Experts: {len(model.experts)} | k_training: {model.k_training} | k_inference: {model.k_inference}\n")
     print(f"experts: {model.experts_infos()}\n")
     epoch_informations = {}
-    
     
     for epoch in range(epochs):
         train_loss, train_acc = train_moe_one_epoch(model, train_loader, optimizer, criterion, device, k=model.k_training, selection_policy=selection_policy_t, gumbell_softmax=gumbell_softmax_t, threshold=threshold)

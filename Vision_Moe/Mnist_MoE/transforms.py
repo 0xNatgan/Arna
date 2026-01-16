@@ -14,9 +14,9 @@ class AddGaussianNoise(object):
 
 def get_transforms():
     return transforms.Compose([
-        transforms.RandomApply([transforms.RandomRotation(degrees=45)], p=0.1),
+        transforms.RandomApply([transforms.RandomRotation(degrees=45)], p=0.07),
         transforms.ToTensor(),
-        transforms.RandomApply([transforms.GaussianBlur(kernel_size=5, sigma=(0.1, 2.0))], p=0.1),
-        transforms.RandomApply([AddGaussianNoise(0., 0.2)], p=0.1),
+        transforms.RandomApply([transforms.GaussianBlur(kernel_size=5, sigma=(0.1, 2.0))], p=0.07),
+        transforms.RandomApply([AddGaussianNoise(0., 0.2)], p=0.07),
         transforms.Normalize((0.1307,), (0.3081,))
     ])

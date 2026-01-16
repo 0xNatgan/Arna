@@ -24,6 +24,12 @@ class MoE_Model(nn.Module):
         Returns the output and the auxiliary balancing loss.
         """
         logits = self.gating_network(x)  # (B, N)
+        
+        # Add standard gaussian noise to logits during training to encourage exploration
+        if self.training:
+            noise = torch.randn_like(logits) * 0.1 
+            logits = logits + noise
+            
         num_experts = len(self.experts)
         
         k = k if k is not None else self.k_training
@@ -35,7 +41,7 @@ class MoE_Model(nn.Module):
         aux_loss = self.compute_balance_loss(logits, probs, k)
         
         # Dense execution for training stability
-        expert_outputs = stack([e(x) for e in self.experts], dim=2) # (B, C, N)
+        expert_outputs = stack([e(x) for e in self.experts], dim=2)
         output = bmm(expert_outputs, probs.unsqueeze(1).transpose(1, 2)).squeeze(2)
 
         return output, aux_loss
@@ -57,17 +63,17 @@ class MoE_Model(nn.Module):
         logits = self.gating_network(x)
         probs = self.experts_selection(logits, k=k, selection_policy=selection_policy, gumbell_softmax=gumbell_softmax, threshold=threshold)
 
-        final_output = None
+        # Initialize output buffer
+        final_output = torch.zeros(B, 10, device=x.device, dtype=x.dtype) # Assuming 10 classes for MNIST
+
         for i in range(num_experts):
             mask = probs[:, i] > 0
             if mask.any():
                 active_indices = torch.where(mask)[0]
                 expert_out = self.experts[i](x[active_indices])
                 
-                if final_output is None:
-                    final_output = torch.zeros(B, expert_out.size(1), device=x.device, dtype=x.dtype)
-                
                 weights = probs[active_indices, i].unsqueeze(1)
+                # Accumulate weighted expert outputs
                 final_output[active_indices] += expert_out * weights
 
         return final_output, probs if verbose else final_output
