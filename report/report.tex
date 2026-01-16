@@ -155,6 +155,9 @@ Ce qui est visible par exemple dans la figure ci dessous
 \end{figure}
 Nous remarquons que l'usage des experts est assez bien repartis lorsqu'on utilise un routage soft et un load-balancing de 0.5
 Cependant lorsqu'on passe à un routage hard, on remarque que l'usage des experts devient plus inégal, ce qui peut indiquer un effondrement de certains experts.
+
+Cependant le routage Hard, peut permettre aux experts de se specialiser davantage, ce qui peut conduire à de meilleures performances dans certains cas.
+En comparant le routage hard et soft, on remarque que les experts se specialisent plus avec le routage hard, mais au prix d'une utilisation inégale des experts.
 Toutes les figures sont disponibles dans le dossier metrics.
 
 \section{Discussion Critique}

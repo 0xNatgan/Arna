@@ -12,20 +12,51 @@ from tqdm import tqdm
 import numpy as np
 from train import train_epoch, evaluate, NewsDataset,load_data
 import os
+from config import *
 
 
-# Hyperparameters
-BATCH_SIZE = 64
-EPOCHS = 3
-LEARNING_RATE = 2e-5
-NUM_EXPERTS = 8
-MODEL_NAME = 'bert-base-uncased'
-MAX_LEN = 128
-ROUTING = 'soft'  # 'soft' or 'hard' or 'gumbel'
-TOP_K = 6 # Only used if ROUTING is 'hard'
-FREEZE_BERT = False  # Whether to freeze BERT layers during training
-LOAD_BALANCE = True  # Whether to use load balancing loss
-LOAD_BALANCE_COEF = 0.01  # Coefficient for load balancing loss
+
+def plot_ablation_results_v2(results_df, save_path='metrics/ablation_study.png'):
+    """Visualize ablation study results - works with both MoE and dense models"""
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    # 1. Accuracy by config
+    ax1 = axes[0]
+    colors = ['steelblue' if t == 'moe' else 'coral' for t in results_df['type']]
+    bars = ax1.bar(range(len(results_df)), results_df['test_acc'], color=colors)
+    ax1.set_xticks(range(len(results_df)))
+    ax1.set_xticklabels(results_df['config_name'], rotation=45, ha='right')
+    ax1.set_ylabel('Test Accuracy')
+    ax1.set_title('Accuracy by Configuration')
+    ax1.set_ylim([0, 1])
+
+    # Add legend
+    from matplotlib.patches import Patch
+    legend_elements = [Patch(facecolor='steelblue', label='MoE'),
+                       Patch(facecolor='coral', label='Dense')]
+    ax1.legend(handles=legend_elements)
+
+    # 2. Accuracy vs Parameters (efficiency plot)
+    ax2 = axes[1]
+    for model_type in results_df['type'].unique():
+        subset = results_df[results_df['type'] == model_type]
+        ax2.scatter(subset['trainable_params'], subset['test_acc'],
+                   label=model_type, s=100, alpha=0.7)
+        # Add labels
+        for _, row in subset.iterrows():
+            ax2.annotate(row['config_name'],
+                        (row['trainable_params'], row['test_acc']),
+                        textcoords="offset points", xytext=(5, 5), fontsize=8)
+
+    ax2.set_xlabel('Trainable Parameters')
+    ax2.set_ylabel('Test Accuracy')
+    ax2.set_title('Accuracy vs Model Size')
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    plt.show()
 def plot_ablation_results(results_df):
     """Visualize ablation study results"""
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
@@ -65,28 +96,50 @@ def plot_ablation_results(results_df):
 def plot_expert_entropy(expert_usage, save_path='metrics/expert_entropy.png', hyperparams=None):
     """Shows how specialized (low entropy) or general (high entropy) each expert is"""
     # Normalize each expert's usage across classes
-    expert_dist = expert_usage / (expert_usage.sum(axis=0, keepdims=True) + 1e-10)
+    expert_probs = expert_usage / (expert_usage.sum(axis=0, keepdims=True) + 1e-10)
 
-    # Compute entropy for each expert
-    entropy = -np.sum(expert_dist * np.log(expert_dist + 1e-10), axis=0)
-    max_entropy = np.log(expert_usage.shape[0])  # Uniform distribution entropy
-    normalized_entropy = entropy / max_entropy  # 0 = specialist, 1 = generalist
+    # Calculate entropy for each expert
+    num_experts = expert_usage.shape[1]
+    num_classes = expert_usage.shape[0]
+    max_entropy = np.log(num_classes)  # Maximum entropy (uniform distribution)
 
-    fig, ax = plt.subplots(figsize=(10, 5))
-    bars = ax.bar(range(len(entropy)), normalized_entropy, color=['red' if e < 0.5 else 'blue' for e in normalized_entropy])
+    entropies = []
+    for expert_idx in range(num_experts):
+        probs = expert_probs[:, expert_idx]
+        # Handle case where expert is never used
+        if probs.sum() < 1e-10:
+            entropy = max_entropy  # Treat unused expert as maximally uncertain
+        else:
+            # Calculate entropy, avoiding log(0)
+            entropy = -np.sum(probs * np.log(probs + 1e-10))
+        entropies.append(entropy)
 
-    ax.axhline(y=0.5, color='gray', linestyle='--', label='Specialist/Generalist threshold')
+    entropies = np.array(entropies)
+    normalized_entropies = entropies / max_entropy  # Normalize to [0, 1]
+
+    # Debug print
+    print(f"Expert entropies (raw): {entropies}")
+    print(f"Expert entropies (normalized): {normalized_entropies}")
+    print(f"Expert usage sum per expert: {expert_usage.sum(axis=0)}")
+
+    # Plot
+    fig, ax = plt.subplots(figsize=(10, 6))
+    colors = ['red' if e < 0.5 else 'blue' for e in normalized_entropies]
+    bars = ax.bar(range(num_experts), normalized_entropies, color=colors)
+
     ax.set_xlabel('Expert')
     ax.set_ylabel('Normalized Entropy')
     ax.set_title('Expert Specialization (Low = Specialist, High = Generalist)')
-    ax.set_xticks(range(len(entropy)))
-    ax.set_xticklabels([f'Expert {i}' for i in range(len(entropy))])
+    ax.set_xticks(range(num_experts))
+    ax.set_xticklabels([f'Expert {i}' for i in range(num_experts)])
+    ax.axhline(y=0.5, color='gray', linestyle='--', label='Specialist/Generalist threshold')
     ax.legend()
+    ax.set_ylim([0, 1.1])
 
     if hyperparams:
         props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
-        fig.text(0.02, 0.98, hyperparams, transform=fig.transFigure,
-                 fontsize=9, verticalalignment='top', bbox=props)
+        ax.text(0.02, 0.98, hyperparams, transform=ax.transAxes,
+                fontsize=9, verticalalignment='top', bbox=props)
 
     plt.tight_layout()
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
