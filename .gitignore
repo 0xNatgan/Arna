@@ -6,3 +6,7 @@ report/*.synctex.gz
 report/*.aux
 report/*.fls
 report/*.fdb_latexmk
+report/*.toc
+report/*.blg
+report/*.bbl
+
