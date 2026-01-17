@@ -12,25 +12,31 @@
 \usepackage{float}
 \usepackage{subcaption}
 \usepackage{tikz}
+
+
 % Marges optimisées pour le double colonne
 \geometry{margin=2cm}
 \usetikzlibrary{shapes.geometric, arrows, positioning, fit, backgrounds}
-
 \title{Rapport de Projet : Exploration des Modèles Mixture of Experts (MoE) pour la Classification de Texte et d'Images}
-\subtitle{projet disponible \href{github.com/0xNatgan/Arna/tree/main/Vision_Moe}}
 \author{Iliescu Eduard \and Nathan Fitger}
 \date{\today}
-\
 
 \begin{document}
 
 \twocolumn[
     \maketitle
+    \begin{center}
+        \url{https://github.com/0xNatgan/Arna/}
+    \end{center}
     \begin{@twocolumnfalse}
         \tableofcontents
         \newpage
     \end{@twocolumnfalse}
-]
+]\title{Rapport de Projet : Exploration des Modèles Mixture of Experts (MoE) pour la Classification de Texte et d'Images}
+\author{Iliescu Eduard \and Nathan Fitger}
+\date{\today}
+
+
 
 \vspace{1em}
 \clearpage
@@ -481,7 +487,6 @@ L'implémentation de ceMoEpour le dataset Mnistn'est pas forcément la plusabout
 Il manqueplus de robustessepour que la répartition des expertsrestestable tout au long des époques.
 Il serait intéressant d'avoir plus d'informations et de données en comparaison avec un modèle dense ainsi que une évolution des performances en fonction de chaquehyperparamètres. Pour desraisons de puissance et detemps nous n'avons pas pu fournir toutes ces comparaisons.
 Toutefoisle modèle estcompletet modulaire et des amélioration comme celles citées ne seraient pas très compliqué à implémenter.
-
 
 
 

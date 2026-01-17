@@ -1,0 +1,31 @@
+\babel@toc {french}{}\relax 
+\contentsline {section}{\numberline {1}Introduction et Revue du Concept de MoE}{2}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Architecture Générale d'un MoE}{2}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Load Balancing Loss}{2}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}Avantages des MoE}{2}{subsection.1.3}%
+\contentsline {section}{\numberline {2}Description des Modèles NLP Implémentés}{3}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Bert MoE}{3}{subsection.2.1}%
+\contentsline {subsubsection}{\numberline {2.1.1}Architecture}{3}{subsubsection.2.1.1}%
+\contentsline {subsubsection}{\numberline {2.1.2}Choix de Conception}{3}{subsubsection.2.1.2}%
+\contentsline {subsection}{\numberline {2.2}Protocole Expérimental et Hyperparamètres}{3}{subsection.2.2}%
+\contentsline {subsubsection}{\numberline {2.2.1}Transformer MoE}{3}{subsubsection.2.2.1}%
+\contentsline {subsubsection}{\numberline {2.2.2}Architecture MoE Transformer V2}{3}{subsubsection.2.2.2}%
+\contentsline {paragraph}{Embeddings.}{3}{section*.5}%
+\contentsline {paragraph}{Couches MoE Transformer.}{3}{section*.6}%
+\contentsline {paragraph}{Classification.}{3}{section*.7}%
+\contentsline {subsection}{\numberline {2.3}Résultats Expérimentaux et Interprétation}{4}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}Discussion Critique}{6}{subsection.2.4}%
+\contentsline {subsubsection}{\numberline {2.4.1}Forces}{6}{subsubsection.2.4.1}%
+\contentsline {subsubsection}{\numberline {2.4.2}Limites}{6}{subsubsection.2.4.2}%
+\contentsline {subsubsection}{\numberline {2.4.3}Perspectives}{6}{subsubsection.2.4.3}%
+\contentsline {paragraph}{Amélioration du mécanisme de routage.}{6}{section*.18}%
+\contentsline {paragraph}{Intégration plus profonde avec le backbone.}{6}{section*.19}%
+\contentsline {paragraph}{Généralisation à d'autres tâches NLP.}{6}{section*.20}%
+\contentsline {section}{\numberline {3}CNN MoE pour la Classification d'Images du dataset Mnist}{7}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Architecture}{7}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Choix de Conception}{7}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Protocole Expérimental et Hyperparamètres}{7}{subsection.3.3}%
+\contentsline {subsubsection}{\numberline {3.3.1}Première Version : Experts Préentrainés}{7}{subsubsection.3.3.1}%
+\contentsline {subsubsection}{\numberline {3.3.2}Version Finale : MoE CNN Classique}{7}{subsubsection.3.3.2}%
+\contentsline {subsection}{\numberline {3.4}Résultats Expérimentaux et Interprétation}{7}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.5}forces, limites, perspectives}{9}{subsection.3.5}%
