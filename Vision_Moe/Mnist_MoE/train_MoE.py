@@ -111,6 +111,40 @@ def evaluate_moe(model: MoE_Model, test_loader, criterion, device, k=None, selec
         return avg_loss, accuracy, repartition / repartition.sum()
     else:
         return avg_loss, accuracy
+    
+def evaluate_moe_no_loss(model: MoE_Model, test_loader, k=None, selection_policy='hybrid', gumbell_softmax=True, verbose=True):
+    """
+    Evaluation using sparse inference.
+    Returns accuracy (and repartition if verbose=True).
+    """
+    model.eval()
+    correct = 0
+    total = 0
+    repartition = np.zeros(len(model.experts), dtype=int)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    with torch.no_grad():
+        for data, target in test_loader:
+            data, target = data.to(device), target.to(device)
+            res = model.inference(data, k=k, selection_policy=selection_policy, gumbell_softmax=gumbell_softmax, verbose=verbose)
+
+            if verbose:
+                output, probs = res
+                repartition += (probs > 0).sum(dim=0).cpu().numpy()
+            else:
+                output = res
+
+            _, predicted = output.max(1)
+            total += target.size(0)
+            correct += predicted.eq(target).sum().item()
+
+    accuracy = 100. * correct / total
+
+    if verbose:
+        return accuracy, repartition / repartition.sum(), 
+    else:
+        return accuracy
 
 def moe_train_loop(model, epochs=10, k=None, selection_policy_t='soft', selection_policy_i='hybrid', gumbell_softmax_t=True, gumbell_softmax_i=True, threshold=None):
         

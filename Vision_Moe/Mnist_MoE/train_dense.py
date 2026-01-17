@@ -83,3 +83,26 @@ def train_dense_model(epochs=10, batch_size=64, lr=0.001):
     
     print(f"\nTraining complete! Best accuracy: {best_acc:.2f}%")
     return {"Dense_Model": best_acc}
+
+def eval_dense_model(model, test_loader):
+    """
+    Evaluate the dense expert model on the test dataset.
+    """
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+    model.eval()
+    
+    correct = 0
+    total = 0
+    
+    with torch.no_grad():
+        for data, target in test_loader:
+            data, target = data.to(device), target.to(device)
+            output = model(data)
+            _, predicted = torch.max(output.data, 1)
+            total += target.size(0)
+            correct += (predicted == target).sum().item()
+    
+    accuracy = 100 * correct / total
+    print(f"Evaluation Accuracy: {accuracy:.2f}%")
+    return accuracy, model
