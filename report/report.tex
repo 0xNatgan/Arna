@@ -1,4 +1,4 @@
-\documentclass[11pt,a4paper]{article}
+\documentclass[twocolumn]{article}
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -12,19 +12,31 @@
 \usepackage{float}
 \usepackage{subcaption}
 \usepackage{tikz}
-\geometry{margin=2.5cm}
+% Marges optimisées pour le double colonne
+\geometry{margin=2cm}
 \usetikzlibrary{shapes.geometric, arrows, positioning, fit, backgrounds}
 
-\title{Rapport de Projet : Classification de News via Mixture of Experts (MoE)}
-\author{Votre Nom}
+\title{Rapport de Projet : Exploration des Modèles Mixture of Experts (MoE) pour la Classification de Texte et d'Images}
+\subtitle{projet disponible \href{github.com/0xNatgan/Arna/tree/main/Vision_Moe}}
+\author{Iliescu Eduard \and Nathan Fitger}
 \date{\today}
+\
 
 \begin{document}
 
-\maketitle
+\twocolumn[
+    \maketitle
+    \begin{@twocolumnfalse}
+        \tableofcontents
+        \newpage
+    \end{@twocolumnfalse}
+]
 
+\vspace{1em}
+\clearpage
 \section{Introduction et Revue du Concept de MoE}
-L'objectif de ce projet est d'explorer l'architecture \textbf{Mixture of Experts} (MoE) et son application à différentes tâches dans ce projet nous nous sommes intréssés à la classification de texte et d'images. \newline
+L'objectif de ce projet est d'explorer l'architecture \textbf{Mixture of Experts} (MoE) et son application à différentes tâches dans ce projet nous nous sommes intréssés à la classification de texte et d'images.
+
 Le concept de MoE repose sur le constat qu'un modèle unique peut avoir du mal à exceller dans l'ensemble des tâches ou les domaines qui lui sont confiés sans devenir excessivement complexe et coûteux en termes de calcul.
 L'idée ppour surmonter la dificulté de modélisation de tâches complexes avec un seul modèle dense est de diviser le modèle en un ensemple de sous-modèle plus petits et spécialisés appelés \textbf{experts}
 et d'un mécanisme de routage appelé \textbf{gating network} qui décide quel expert doit traiter chaque entrée.
@@ -33,10 +45,9 @@ Ainsi au on cherche à achever des performances similaires voir supérieures à 
 \subsection{Architecture Générale d'un MoE}
 L'architecture générale d'un modèle MoE peut être représentée comme suit :
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.4\textwidth]{./img/moe_archi.png}
-    \centering
+    \includegraphics[scale=0.2]{./img/moe_archi.png}
     \caption{Architecture MoE}
     \label{fig:Architecture_Moe}
 \end{figure}
@@ -64,7 +75,7 @@ L'architecture générale d'un modèle MoE peut être représentée comme suit :
 
 \subsection{Load Balancing Loss}
 
-L'un des problèmes classiques des architectures MoE est le \textbf{load balancing} (équilibrage de la charge) entre les experts.
+L'un des problèmes classiques des architectures MoE est le \textbf{load balancing} entre les experts.
 Certains experts sont consultés fréquemment, tandis que d'autres sont rarement ou jamais sollicités. Pour encourager le routeur à sélectionner chaque expert avec une fréquence égale au sein de chaque batch, chaque couche MoE utilise des fonctions de perte auxiliaires.
 
 Le \textbf{Switch Transformer} simplifie cela en une seule fonction de perte auxiliaire. Soit $n$ le nombre d'experts, et pour un batch de requêtes $\{x_1, x_2, \ldots, x_T\}$, la perte auxiliaire est définie par :
@@ -89,6 +100,9 @@ Cette perte encourage une distribution uniforme de la charge entre les experts, 
     \item \textbf{Spécialisation} : Chaque expert peut se spécialiser dans un aspect particulier des données.
 \end{itemize}
 
+
+
+
 \section{Description des Modèles NLP Implémentés}
 \subsection{Bert MoE}
 \subsubsection{Architecture}
@@ -106,10 +120,11 @@ Notre modèle, \texttt{MoEBertModel}, utilise \textbf{BERT} (\textit{bert-base-u
     \item \textbf{GELU} (Gaussian Error Linear Unit) : en raison de ses performances supérieures dans les tâches NLP par rapport à ReLU.
 \end{itemize}
 
-\section{Protocole Expérimental et Hyperparamètres}
+\subsection{Protocole Expérimental et Hyperparamètres}
 Le meilleur entraînement avec BERT unfreeze a été effectué sur le dataset AG News.
-\begin{table}[H]
+\begin{table}[htbp]
     \centering
+    \small % Réduction de la taille pour tenir dans une colonne
     \begin{tabular}{lc}
         \toprule
         Hyperparamètre        & Valeur             \\
@@ -129,9 +144,11 @@ Le meilleur entraînement avec BERT unfreeze a été effectué sur le dataset AG
     \end{tabular}
     \caption{Configuration des hyperparamètres}
 \end{table}
+
 Le meilleur entraînement avec BERT freeze a été effectué sur le dataset AG News.
-\begin{table}[H]
+\begin{table}[htbp]
     \centering
+    \small
     \begin{tabular}{lc}
         \toprule
         Hyperparamètre        & Valeur             \\
@@ -151,9 +168,8 @@ Le meilleur entraînement avec BERT freeze a été effectué sur le dataset AG N
     \end{tabular}
     \caption{Configuration des hyperparamètres}
 \end{table}
-\subsection{Transformer MoE}
 
-\subsection{Transformer MoE Layer}
+\subsubsection{Transformer MoE}
 Nous avons également implémenté un modèle Transformer avec des couches MoE personnalisées. Le modèle, \texttt{MoETransformerModelV2}, utilise des couches d'attention multi-têtes suivies de couches MoE éparses. Chaque couche MoE contient plusieurs experts, chacun étant un réseau feed-forward.
 
 \subsubsection{Architecture MoE Transformer V2}
@@ -176,8 +192,9 @@ Notre modèle \texttt{MoETransformerModelV2} suit l'architecture Switch Transfor
 \paragraph{Classification.} Après les $N$ couches, une normalisation finale est appliquée, suivie d'un mean-pooling sur les tokens non-masqués et d'un classifieur linéaire.
 
 
-\begin{table}[H]
+\begin{table}[htbp]
     \centering
+    \small
     \begin{tabular}{ll}
         \toprule
         Paramètre                         & Valeur \\
@@ -193,69 +210,279 @@ Notre modèle \texttt{MoETransformerModelV2} suit l'architecture Switch Transfor
     \end{tabular}
     \caption{Hyperparamètres du MoE Transformer V2.}
 \end{table}
-\section{Résultats Expérimentaux et Interprétation}
-\subsection{NLP}
+
+\subsection{Résultats Expérimentaux et Interprétation}
+
 Pour le modèle NLP, nous avons entrainé plusieurs configurations MoE avec difficiles types de routage et comparé leurs performances à un modèle BERT standard.
 Comme modele de base, nous avons utilise BERT base uncased, et nous avons freeze les poids de BERT pendant l'entrainement des modèles MoE pour réduire le cout computationnel.
 Lorsque nous entrainons le modele MoE avec BERT freeze, nous obtenons une accuracy proche de 88\%, ce qui est comparable au modele BERT standard. Nous avons egalement observe l'impact dur
 load balancing, qui a permis d'ameliorer la repartition de l'utilisation des experts et d'eviter l'effondrement de certains experts.
 
 Nous avons construit 3 modeles differents :
--  Un modele avec Bert comme le Backbone
-- Un modele Transformer classique avec une couche MoE
-- Un modele Transformer
+\begin{itemize}
+    \item Un modele avec Bert comme le Backbone
+    \item Un modele Transformer classique avec une couche MoE
+    \item Un modele Transformer
+\end{itemize}
+
+
+
+
+Nous remarquons que l'usage des experts est assez bien repartis lorsqu'on utilise un routage soft et un load-balancing de 0.5
+Cependant lorsqu'on passe à un routage hard, on remarque que l'usage des experts devient plus inégal, ce qui peut indiquer un effondrement de certains experts.
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.3]{../NLP_MoE/metrics/model 2/expert_usage_heatmap.png}
+    \caption{Soft routing avec load balancing disponible dans metrics/model 2.}
+    \label{fig:expert_soft}
+\end{figure}
 
 \begin{figure}[H]
     \centering
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{../NLP_MoE/metrics/model 2/expert_usage_heatmap.png}
-        \caption{Soft routing avec load balancing}
-        \label{fig:expert_soft}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.48\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{../NLP_MoE/metrics/model 1/expert_usage_heatmap.png}
-        \caption{Hard routing}
-        \label{fig:expert_hard}
-    \end{subfigure}
-    \caption{Comparaison de l'utilisation des experts selon le type de routage.}
-    \label{fig:expert_comparison}
+    \includegraphics[scale=0.3]{../NLP_MoE/metrics/model 1/expert_usage_heatmap.png}
+    \caption{Hard routing disponible dans metrics/model 1.}
+    \label{fig:expert_hard}
 \end{figure}
-Nous remarquons que l'usage des experts est assez bien repartis lorsqu'on utilise un routage soft et un load-balancing de 0.5
-Cependant lorsqu'on passe à un routage hard, on remarque que l'usage des experts devient plus inégal, ce qui peut indiquer un effondrement de certains experts.
-
 Cependant le routage Hard, peut permettre aux experts de se specialiser davantage, ce qui peut conduire à de meilleures performances dans certains cas.
 En comparant le routage hard et soft, on remarque que les experts se specialisent plus avec le routage hard, mais au prix d'une utilisation inégale des experts.
 Toutes les figures sont disponibles dans le dossier metrics.
+\\\\
+Lors de la comparaison de l'\textit{accuracy} entre notre modèle MoE avec BERT en \textit{backbone} et un modèle BERT classique simulant des experts, nous observons que le MoE est légèrement supérieur. Cette différence peut s'expliquer par le \textbf{nombre plus élevé de paramètres} dans le modèle MoE, comme le montre le graphique \textit{Accuracy vs Model Size}.
+\\\\
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.3]{../NLP_MoE/metrics/ablation MoE V Dense/ablation_study.png}
+    \caption{Comparaison.}
+    \label{fig:expert_hard}
+\end{figure}
+Le modèle \texttt{Dense\_x1} atteint une \textit{accuracy} de \textbf{85,4\%} avec seulement \textbf{3 millions de paramètres}, ce qui en fait une solution très efficace. En revanche, notre \textbf{meilleur modèle MoE}, avec \textbf{18 millions de paramètres}, n'améliore cette performance que de \textbf{1,5\%}, tout en étant plus coûteux en termes de ressources.
 
-\section{Discussion Critique}
-\subsection{Forces}
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.3]{../NLP_MoE/metrics/model_bert/model_bertexpert_entropy.png}
+    \caption{Model Bert Specialization disponible dans metrics/model bert.}
+    \label{fig:expert_hard}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.3]{../NLP_MoE/metrics/model_transformerv2/model_transformer_v2expert_entropy.png}
+    \caption{Model Transformer with MoE Layer Specialization.}
+    \label{fig:expert_hard}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.3]{../NLP_MoE/metrics/model_transformer/model_transformerexpert_entropy.png}
+    \caption{Model Transformer Specialization.}
+    \label{fig:expert_hard}
+\end{figure}
+En comparant les métriques des modèles \texttt{model\_bert}, \texttt{model\_transformer} et \texttt{model\_transformerv2}, nous constatons que \texttt{model\_transformerv2} qui utilise une couche d'experts sur un \textit{transformer} simple, ainsi que le modèle utilisant un \textit{transformer} en \textit{backbone}, permettent aux experts de \textbf{se spécialiser davantage}. À l'inverse, le modèle utilisant \textbf{BERT en \textit{backbone}} tend à \textbf{généraliser les experts}.
+
+Cette différence peut s'expliquer par la nature des représentations apprises :
+\begin{itemize}
+    \item Dans un \textit{transformer simple}, les représentations initiales sont moins riches, ce qui favorise la spécialisation des experts.
+    \item Avec \textbf{BERT}, les représentations sont déjà \textbf{riches, sémantiques et discriminantes}, limitant ainsi la marge de spécialisation des experts.
+\end{itemize}
+
+Nous avons effectué une analyse de 6 modeles différents avec diverses configurations de routage (hard, soft, top-k), nombre d'experts ainsi que dropout.
+Ces tests ont été réalisés sur le dataset AG News avec un Transformer avec une couche MoE.
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.5]{../NLP_MoE/metrics/Accuracy_by_config.png}
+    \caption{Comparaison accuracy.}
+    \label{fig:expert_hard}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.5]{../NLP_MoE/metrics/expert_spec_vs_num_experts.png}
+    \caption{Comparaison expert number.}
+    \label{fig:expert_hard}
+\end{figure}
+Nous pouvons conclure que le routing ne change pas significativement l'accuracy du modèle ni la spécialisation des experts.
+Cela est explique par le fait d'utiliser un Transformer simple avec une couche MoE, de meme pour un transformer simple.
+Lorsqu'on utilise un MOE avec Bert en backbone, le routing a un impact plus significatif sur la spécialisation des experts.
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.3]{../NLP_MoE/metrics/model 7 no load_balance/expert_entropy.png}
+    \caption{No load balance, bert backbone.}
+    \label{fig:expert_hard}
+\end{figure}
+Lors d'une experience avec bert backbone et sans load balancing, on remarque que le routage hard permet une meilleure spécialisation des experts.
+
+
+D'autres expériences avec des configurations variées sont disponibles dans le dossier \textbf{NLP\_MoE/metrics}, la configuration du modèle est indiquée sur chaque images
+\subsection{Discussion Critique}
+\subsubsection{Forces}
 Capacité de spécialisation et maintien d'une haute précision sur des classes complexes grâce à la modularité des experts.
-\subsection{Limites}
+Flexibilité du routage permettant d'adapter le modèle à différentes tâches et distributions de données, par exemple soft, hard ou top-k.
+La modularité architecturale permettant d'ajouter/retirer des experts et d'adapter à différents backbones (Transformer, Bert).
+Il est aussi possible d'etendre le modèle à d'autres tâches comme la détection de sentiment.
+\subsubsection{Limites}
 Risque de genéralisation des experts sur des sous-ensembles spécifiques du dataset, potentiellement limitant la robustesse globale du modèle.
 Risque d'\textbf{Expert Collapse} (effondrement) où seuls quelques experts sont activés, rendant le reste de la capacité du modèle inutile si le router n'est pas bien régularisé.
-\subsection{Perspectives}
-\subsubsection{NLP}
+
+Les principales limites de nos expériences résident dans le \textbf{nombre d'\textit{epochs}} utilisé pour l'entraînement. En raison du \textbf{coût computationnel élevé}, certaines expériences ont été limitées à \textbf{2 ou 3 \textit{epochs}}.
+
+Cependant, tous les modèles entraînés de manière isolée ont bénéficié d'un entraînement complet sur \textbf{5 \textit{epochs}}, malgré le coût élevé. Nous avons jugé cette approche plus pertinente pour obtenir des résultats significatifs.
+
+\subsubsection{Perspectives}
 Utiliser des fonctions de perte de \textit{Load Balancing} plus agressives ou explorer le \textbf{Top-k routing} pour réduire le coût computationnel à l'inférence.
 Mixer des experts de différentes architectures (par exemple, CNN, RNN) pour capturer diverses caractéristiques des données textuelles. Cela
 pourrait ameliorer la specialisation des experts et la performance globale du modele.
-Nous pourrons aussi ajouter du noise au gating ou encore ajouter une couche d'adaptation avant le gating.
 
+\paragraph{Amélioration du mécanisme de routage.}
+\begin{itemize}
+    \item \textbf{Expert Choice Routing} : Inverser la logique du routage en permettant aux experts de choisir les tokens plutôt que l'inverse, comme proposé dans \textit{Expert Choice}. Cette approche garantit un équilibrage naturel de la charge.
+    \item \textbf{Routage hiérarchique} : Implémenter un routage à deux niveaux où un premier routeur sélectionne un groupe d'experts, puis un second affine la sélection au sein du groupe.
+    \item \textbf{Routage appris par token} : Au lieu de router au niveau de la phrase (via [CLS]), router chaque token individuellement pour capturer des spécialisations plus fines.
+\end{itemize}
 
+\paragraph{Intégration plus profonde avec le backbone.}
+\begin{itemize}
+    \item \textbf{MoE dans les couches intermédiaires de BERT} : Remplacer les FFN de certaines couches BERT par des couches MoE (comme dans Switch Transformer) plutôt que d'ajouter le MoE uniquement en sortie.
+    \item \textbf{Adapter Layers} : Ajouter des \textit{adapter layers} entraînables entre BERT et le MoE pour mieux adapter les représentations.
+    \item \textbf{Dégel progressif} : Dégeler progressivement les dernières couches de BERT durant l'entraînement pour permettre une co-adaptation avec les experts.
+\end{itemize}
 
-\subsection{CNN MoE pour la Classification d'Images du dataset Mnist}
-\subsubsection{Architecture}
+\paragraph{Généralisation à d'autres tâches NLP.}
+\begin{itemize}
+    \item \textbf{Multi-task Learning} : Entraîner le MoE sur plusieurs tâches simultanément (classification, NER, sentiment) avec des experts partagés et spécialisés.
+    \item \textbf{Few-shot Learning} : Évaluer la capacité du MoE à généraliser sur de nouvelles classes avec peu d'exemples.
+    \item \textbf{Domain Adaptation} : Tester la transférabilité des experts sur des domaines non vus durant l'entraînement.
+\end{itemize}
+\clearpage
+\section{CNN MoE pour la Classification d'Images du dataset Mnist}
+L'implémentation de ce projet est disponible dans le dossier \textbf{Vision\_Moe/Mnist\_MoE}.
+\subsection{Architecture}
 Notre Gating Network est un CNN simple ou les sorties de la derniere couche convolutive sont aplaties et passées à une couche linéaire pour produire les scores des experts.
 Chaque expert est un CNN un peu plus profond que le routeur, avec plusieurs couches convolutives suivies de couches fully connected.
 en fonction du type de routage choisi (soft, hard, hybrid), les experts sont sélectionnés et leurs sorties combinées pour produire la sortie finale du modèle.
-\subsubsection{Choix de Conception}
+\subsection{Choix de Conception}
 \begin{itemize}
-\item \textbf{Entrainement} : L'entrainement des experts et du routeur se fait simultanément pour permettre au routeur d'apprendre à sélectionner les experts les plus pertinents en fonction des données d'entrée.
-\item \textbf{Parametres d'entrainement} : Durant l'entrainement le routage est effectué en mode soft pour permettre une exploration complète et un entraînement complet des experts.
-\item \textbf{Load balancing} : Nous avons implémenté une perte de load balancing pour encourager une utilisation uniforme des experts et éviter un déséquilibrage dans le routage des experts.
-\item \textbf{Routage Hybride} : Le routage hybride consiste à selectionner les experts dont les scores depassent un certain seuil, permettant ainsi une flexibilité entre les deux extremes il permet d'avoir un score légerement plus élévé lors des tests mais peut utiliser plus d'experts que le routage hard.
+    \item \textbf{Entrainement} : L'entrainement des experts et du routeur se fait simultanément pour permettre au routeur d'apprendre à sélectionner les experts les plus pertinents en fonction des données d'entrée.
+    \item \textbf{Parametres d'entrainement} : Durant l'entrainement le routage est effectué en mode soft pour permettre une exploration complète et un entraînement complet des experts.
+    \item \textbf{Load balancing} : Nous avons implémenté une perte de load balancing pour encourager une utilisation uniforme des experts et éviter un déséquilibrage dans le routage des experts.
+    \item \textbf{Routage Hybride} : Le routage hybride consiste à selectionner les experts dont les scores depassent un certain seuil, permettant ainsi une flexibilité entre les deux extremes il permet d'avoir un score légerement plus élévé lors des tests mais peut utiliser plus d'experts que le routage hard.
 \end{itemize}
+
+\subsection{Protocole Expérimental et Hyperparamètres}
+
+\subsubsection{Première Version : Experts Préentrainés}
+Dans un premier temps, nous n'avions pas compris exactement le concept attendu et crée un modèle MoE avec des experts préentrainés chacun avec des altérations différentes du dataset MNIST (rotation, bruit, etc.).
+Cette approche bien que relativement performante et créative ne correspondait pas à l'objectif principal de l'architecture MoE.
+Le routeur lui était bien entrainé à appairer les différents experts en fonction des altérations
+mais celà n'avait aucun interet et revenait à faire de la sélection de modèle que l'on aurait pu faire à la main plutôt que de l'apprentissage collaboratif entre experts.
+Ce projet est trouvable dans le dossier \textbf{Vision\_Moe/Mnist\_MoE/Pretrained} et dans le notebook \textbf{Vision\_MoE/Mnist\_pretrained.ipynb}.
+\\
+
+\subsubsection{Version Finale : MoE CNN Classique}
+Pour la version fidèle à l'architecture MoE classique nous avons entrepris de créer un modèle CNN MoE où le routeur et les experts sont entrainés simultanément sur le dataset MNIST.
+Dans un premier temps nous voulions comparer différentesarchitectures d'expertsCNN simples avec différentes profondeurs et nombres de filtres.
+Cependant après de nombreux essais le routing convergeait toujours vers le même expert.
+Nous avons donc décidé d'utiliser des experts identiques pour garantir une spécialisation équitable entre les experts.
+
+
+
+
+Notre implémentation finale du modèle MoE CNN est disponible dans le dossier \textbf{Vision\_Moe/Mnist\_MoE/Final\_MoE} et dans le notebook \textbf{Mnist\_MoE.ipynb}.
+
+
+Nous avons entrainé notre modèle sur le dataset MNIST avec les hyperparamètres suivants :
+\begin{table}[htbp]
+    \centering
+    \small
+    \begin{tabular}{lc}
+        \toprule
+        Hyperparamètre             & Valeur         \\
+        \midrule
+        Batch Size                 & 256            \\
+        Nombre d'Époques           & 10             \\
+        Nombre d'Experts           & 7              \\
+        Routing                    & soft(training) \\
+        Load Balancing Coef        & 0.05           \\
+        $\tau$ (softmax + gumbell) & 1              \\
+        gumbell-softmax            & True           \\
+        \bottomrule
+    \end{tabular}
+    \caption{Configuration des hyperparamètres pour le modèle CNN MoE sur MNIST}
+\end{table}
+
+
+Les paramètres de test durantl'inférence sont les suivants :
+\begin{table}[htbp]
+    \centering
+    \small
+    \begin{tabular}{lc}
+        \toprule
+        Hyperparamètre & Valeur \\
+        \midrule
+        Batch Size     & 256    \\
+        Routing        & hybrid \\
+        softmax        & True   \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\subsection{Résultats Expérimentaux et Interprétation}
+
+Durant nos expérimentations nous avons eu plusieurs résultats non concluants mais qui nous on mieux permis de comprendre certaines parties de l'architecture MoE.
+
+Parmis nos expériences et observations les plus importantes nous retenons les suivantes :
+\begin{itemize}
+    \item \textbf{Architecture des experts} : L'utilisation d'experts avec une architecture identique nous à permis d'éviter l'effondrement de certains experts et de garantir une spécialisation équitable. Des experts trop différentspeuvent conduire à une domination de certains experts.
+    \item \textbf{Impact du Load Balancing} : L'ajout de la perte de load balancing a significativement amélioré la répartition de l'utilisation des experts, évitant ainsi l'effoondrement dès le début de la répartition des experts.
+    \item \textbf{Routage Hybride} : Le routage hybride a permis un compromis intéressant entre le routage hard et soft, offrant une flexibilité accrue lors de l'inférence dont la difficulté réside dans la définition du threshold.
+    \item \textbf{Gating Network} : Le choix d'architecture du gating network est important pour bien capturer les caractéristiques des différents experts. Dans un premier temps nous avions utilisé un réseau linéaire qui ne permettait pas de router correctement les entrées vers les experts puis nous nous sommes tournés vers un réseau avec deux couches de convolution.
+    \item \textbf{Performance} : Notre modèle MoE CNN a atteint une accuracy de  environ 99.2\% sur le dataset MNIST, ce qui est compétitif par rapport aux modèles CNN classiques tout en offrant la flexibilité et la modularité des architectures MoE.
+    \item \textbf{Dimensions des batchs d'entrainement} : Nous avons remarqué que des batchs plus grands permettaient une meilleure estimation des statistiques de load balancing, conduisant à une répartition plus uniforme de l'utilisation des experts. Des batchs trop petits (64 mènents à un routing inégal et/ou peu stable entre les epochs.)
+\end{itemize}
+
+L'impact de certains hyperparamètres sur la performance et la spécialisation des experts est assez notable:
+
+\begin{itemize}
+    \item \textbf{Load Balancing Coefficient} : Un coefficient trop faible conduit à un effondrement des experts, tandis qu'un coefficient trop élevé peut nuire à la performance globale en forçant une répartition trop uniforme et des performances plus faibles.
+    \item \textbf{Type de Routage} : Le routage soft favorise une exploration complète des experts, tandis que le routage hard peut conduire à une spécialisation plus marquée mais au risque d'effondrement. Pour cette raison nous avons opté pour un routage hybride durant l'inférence.
+    \item \textbf{Nombre d'Experts} : Un nombre trop élevé d'experts peut compliquer l'apprentissage du routeur et mettre de coté quelques experts, tandis qu'un nombre trop faible limite la capacité de spécialisation et augmente l'effondrement de la répartition.
+          \item\textbf{Nombre d'epochs} :Un trop grand nombre d'epochs (au delà de 8) peut conduire à un surapprentissage de certains experts et à un éffondrement de la répartition. A l'inverse un nombre trop faible(en dessous de 3-4) donne des performances plus faibles.
+\end{itemize}
+
+Resultats de notreMoE:
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.3]{../Vision_Moe/metrics/experts_repartition.png}
+    \caption{ACtivation des experts au court de l'entrainement}
+    \label{fig :}
+\end{figure}
+
+La répartition des expert la plus intéressante est situé dans l'époque 4ensuite il semble y avoir un éfondrement de la répartition des experts(epoques 6-8). A l'époque 4 la répartition desexperts est entre9 et 20\%soit une répartition pour 7 experts assez satisfaisante
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.3]{../Vision_Moe/metrics/expert_activation.png}
+    \caption{Activation des experts en fonction des classes du dataset}
+    \label{fig:}
+\end{figure}
+
+La répartition de l'activation des modèles en fonction des classes dans le cas ou le MoE est entrainé sur trop d'époques montreun éfondrement de la répartition
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.3]{../Vision_Moe/metrics/expert_activation_4epochs.png}
+    \caption{Activation des experts en fonction des classes du dataset (entrainé sur 4 époques)}
+    \label{fig:}
+\end{figure}
+
+Répartition des l'activation desexpertsen fonction des classes. La répartition est homogène avec aucun expert laissé en dehors.
+
+\subsection{forces, limites, perspectives}
+
+L'implémentation de ceMoEpour le dataset Mnistn'est pas forcément la plusaboutie.
+Il manqueplus de robustessepour que la répartition des expertsrestestable tout au long des époques.
+Il serait intéressant d'avoir plus d'informations et de données en comparaison avec un modèle dense ainsi que une évolution des performances en fonction de chaquehyperparamètres. Pour desraisons de puissance et detemps nous n'avons pas pu fournir toutes ces comparaisons.
+Toutefoisle modèle estcompletet modulaire et des amélioration comme celles citées ne seraient pas très compliqué à implémenter.
+
+
+
 
 \end{document}
